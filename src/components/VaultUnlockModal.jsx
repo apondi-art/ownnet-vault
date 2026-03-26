@@ -6,6 +6,9 @@ export default function VaultUnlockModal({ onUnlock, onReset, onCancel }) {
   const [showPassword, setShowPassword] = useState(false);
   const [useRecoveryPhrase, setUseRecoveryPhrase] = useState(false);
   const [recoveryPhrase, setRecoveryPhrase] = useState('');
+  const [needPassword, setNeedPassword] = useState(false);
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [showRecoveryPassword, setShowRecoveryPassword] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -29,6 +32,14 @@ export default function VaultUnlockModal({ onUnlock, onReset, onCancel }) {
         return;
       }
       
+      const storedRecovery = localStorage.getItem('ownnet-vault-recovery-hash');
+      const storedEncryptedPassword = localStorage.getItem('ownnet-vault-encrypted-password');
+      
+      if (!storedRecovery || !storedEncryptedPassword) {
+        setNeedPassword(true);
+        return;
+      }
+      
       onUnlock(cleanPhrase, true);
     } else {
       if (!password) {
@@ -37,6 +48,23 @@ export default function VaultUnlockModal({ onUnlock, onReset, onCancel }) {
       }
       onUnlock(password, false);
     }
+  };
+
+  const handleRecoveryWithPassword = (e) => {
+    e.preventDefault();
+    
+    if (!recoveryPassword) {
+      setError('Please enter your password');
+      return;
+    }
+    
+    const cleanPhrase = recoveryPhrase
+      .toLowerCase()
+      .replace(/[,;.\n\r\t]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    onUnlock(cleanPhrase, true, recoveryPassword);
   };
 
   const handlePhrasePaste = (e) => {
@@ -57,6 +85,94 @@ export default function VaultUnlockModal({ onUnlock, onReset, onCancel }) {
     .trim()
     .split(' ')
     .filter(w => w.length > 0).length;
+
+  if (needPassword) {
+    return (
+      <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4">
+        <div className="bg-secondary-background rounded-base p-6 sm:p-8 w-full max-w-md border border-border shadow-lg relative">
+          <button
+            type="button"
+            onClick={() => {
+              setNeedPassword(false);
+              setRecoveryPassword('');
+              setError('');
+            }}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-background rounded-base transition-colors"
+            aria-label="Go back"
+          >
+            ✕
+          </button>
+          <div className="text-center mb-6">
+            <div className="text-5xl mb-3">🔑</div>
+            <h2 className="text-xl sm:text-2xl font-bold mb-1">Password Required</h2>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              You're recovering on a new device. Enter your vault password to decrypt your files.
+            </p>
+          </div>
+          
+          <div className="bg-main/10 border border-main/30 rounded-base p-3 mb-4">
+            <p className="text-xs sm:text-sm text-main">
+              <strong>💡 Why is this needed?</strong><br />
+              Your files are encrypted with your password. The recovery phrase only finds them on the blockchain - the password decrypts them.
+            </p>
+          </div>
+          
+          <form onSubmit={handleRecoveryWithPassword}>
+            <div className="mb-6">
+              <label className="block mb-2 font-medium text-sm">
+                Vault Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showRecoveryPassword ? 'text' : 'password'}
+                  className="w-full px-4 py-3 bg-background border border-border rounded-base text-foreground focus:outline-none focus:ring-2 focus:ring-main focus:border-transparent pr-12"
+                  value={recoveryPassword}
+                  onChange={(e) => {
+                    setRecoveryPassword(e.target.value);
+                    setError('');
+                  }}
+                  placeholder="Enter your password"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRecoveryPassword(!showRecoveryPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showRecoveryPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </div>
+            
+            {error && (
+              <p className="text-error mb-4 text-sm bg-error/10 p-3 rounded-base">
+                {error}
+              </p>
+            )}
+            
+            <button 
+              type="submit" 
+              className="w-full bg-main text-main-foreground px-6 py-3 rounded-base font-semibold hover:opacity-90 transition-opacity mb-3"
+            >
+              🔓 Complete Recovery
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => {
+                setNeedPassword(false);
+                setRecoveryPassword('');
+                setError('');
+              }}
+              className="w-full bg-secondary-background border border-border px-6 py-3 rounded-base text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+            >
+              ← Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4">
