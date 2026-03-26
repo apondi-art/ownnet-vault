@@ -93,9 +93,6 @@ export default function SetupModal({ onComplete }) {
       return;
     }
     
-    // Store recovery phrase hash for future verification
-    localStorage.setItem('ownnet-vault-recovery', btoa(recoveryPhrase));
-    
     onComplete(password, recoveryPhrase);
   };
 
@@ -254,6 +251,9 @@ export default function SetupModal({ onComplete }) {
               <p className="text-sm text-warning font-medium mb-1">⚠️ Important</p>
               <p className="text-xs sm:text-sm text-warning/80">
                 Store this phrase safely! If you lose both your password AND recovery phrase, your data cannot be recovered.
+              </p>
+              <p className="text-xs sm:text-sm text-warning/80 mt-2">
+                <strong>You will need BOTH your password AND recovery phrase to recover on a new device.</strong>
               </p>
             </div>
             
