@@ -1,6 +1,6 @@
 # OwnNet Vault🔐
 
-> A privacy-first data vault with client-side encryption and blockchain ownership verification
+> A privacy-first data vault with client-side encryption and blockchain-verified cross-device sync
 
 ## Overview
 
@@ -29,14 +29,16 @@ Today, users rely on centralized platforms that can access and control their per
 - Data breaches expose sensitive information
 - Accounts can be banned or locked without warning
 - Users have no real ownership of their digital assets
+- Data is locked to a single device
 
 ## Solution
 
-**OwnNet Vault** is a client-side encrypted data vault where only users hold the keys to their data. All encryption happens in the browser before data is stored, meaning:
+**OwnNet Vault** is a client-side encrypted data vault where only users hold the keys to their data:
 
 - **Zero-knowledge**: We cannot read your data
 - **True ownership**: You control your encryption keys
-- **Blockchain verification** (optional): Prove ownership on-chain
+- **Cross-device sync**: Access your files from any device via blockchain
+- **Decentralized storage**: Files stored on IPFS, not centralized servers
 
 ## Key Features
 
@@ -44,10 +46,87 @@ Today, users rely on centralized platforms that can access and control their per
 - 🔑 **Password-Derived Keys**: Your password generates the encryption key
 - 📁 **Secure File Storage**: Upload and encrypt any file type
 - 📝 **Encrypted Notes**: Save sensitive text notes
-- 🌐 **IPFS Integration**: Decentralized storage option
-- ⛓️ **Blockchain Verification**: Optional ownership proof on Ethereum
-- 🦊 **MetaMask Support**: Connect wallet for blockchain features
-- 💾 **Local-First**: Works offline with local storage fallback
+- 🌐 **IPFS Storage**: Files stored on decentralized IPFS via Pinata
+- 📋 **Manifest System**: Encrypted file list synced across devices
+- ⛓️ **Auto Blockchain Sync**: Wallet created automatically (no MetaMask needed)
+- 🔒 **Recovery Phrase**: 12-word backup for cross-device access
+- 🚫 **No MetaMask Required**: Works for non-crypto users
+
+## How Cross-Device Sync Works
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        DEVICE 1                                  │
+│  ┌──────────┐    ┌───────────┐    ┌──────────────────────┐      │
+│  │  Upload  │───▶│ Encrypt   │───▶│ Upload to IPFS       │      │
+│  │  File    │    │ (AES-256) │    │                      │      │
+│  └──────────┘    └───────────┘    └──────────────────────┘      │
+│                                            │                      │
+│                                            ▼                      │
+│                               ┌─────────────────────┐              │
+│                               │ Encrypted Manifest  │              │
+│                               │ (File List)         │              │
+│                               └─────────────────────┘              │
+│                                            │                      │
+│                                            ▼                      │
+│                      ┌──────────────────────────────────────┐    │
+│                      │ Blockchain (Auto-created wallet)     │    │
+│                      │ Address: 0x... (Hidden from user)    │    │
+│                      │ Manifest CID stored here            │    │
+│                      └──────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                                             │
+                    ┌────────────────────────┴────────────────────────┐
+                    │                                                 │
+                    ▼                                                 ▼
+            ┌───────────────┐                                ┌───────────────┐
+            │   IPFS (Pinata)│                                │  Any Device   │
+            │   - Files      │                                │               │
+            │   - Manifest   │                                │  Login with   │
+            └───────────────┘                                │  Password OR  │
+                                                               │  Recovery     │
+                                                               │  Phrase       │
+                                                               └───────────────┘
+                                                                        │
+                                                                        ▼
+                                                            ┌───────────────────────┐
+                                                            │ All files restored!   │
+                                                            │ - Auto wallet restore │
+                                                            │ - Manifest synced     │
+                                                            │ - Files decrypted     │
+                                                            └───────────────────────┘
+```
+
+### Non-Crypto User Experience
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    USER EXPERIENCE                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  SIGNUP:                                                        │
+│  ─────────────────────────────────────                          │
+│  1. Enter password ✓                                           │
+│  2. Write down recovery phrase ✓                               │
+│  3. Done! Upload files                                          │
+│                                                                 │
+│  LOGIN (SAME DEVICE):                                           │
+│  ─────────────────────────                                        │
+│  1. Enter password ✓                                           │
+│  2. Files automatically restored ✓                             │
+│                                                                 │
+│  LOGIN (NEW DEVICE):                                            │
+│  ─────────────────────────                                       │
+│  1. Enter recovery phrase ✓                                     │
+│  2. Wallet auto-restored ✓                                      │
+│  3. Files synced from blockchain ✓                              │
+│  4. All files available! ✓                                     │
+│                                                                 │
+│  WHAT USER SEES:   Password prompt, files                       │
+│  WHAT USER DOESN'T SEE: Wallet, keys, blockchain, crypto       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ## Tech Stack
 
@@ -55,44 +134,40 @@ Today, users rely on centralized platforms that can access and control their per
 |-------|-------------|
 | Frontend | React + Vite |
 | Encryption | Web Crypto API (AES-256-GCM) |
-| Storage | LocalStorage / IPFS |
+| Storage | IPFS (Pinata) + localStorage |
+| Manifest | Encrypted JSON on IPFS |
 | Blockchain | Ethereum (Solidity) |
 | Wallet | MetaMask |
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
-
 ### Required Software
 
-1. **Node.js** (v18 or higher)- Download from: https://nodejs.org/
+1. **Node.js** (v18 or higher)
+   - Download from: https://nodejs.org/
    - Verify installation: `node --version`
 
 2. **npm** (comes with Node.js)
    - Verify installation: `npm --version`
 
 3. **Git**
-   - Download from: https://git-scm.com/
-   - Verify installation: `git --version`
+   - Download from: https://git-scm.org/
 
-### For Blockchain Features
+### For Production Features
 
-4. **MetaMask Browser Extension**
+4. **Pinata Account** (free tier available)
+   - Sign up at: https://app.pinata.cloud/
+   - Create API key for IPFS storage
+
+5. **MetaMask Browser Extension** (for cross-device sync)
    - Download from: https://metamask.io/
-   - Create a wallet and save your seed phrase
 
-5. **Test ETH** (for Sepolia testnet)
+6. **Test ETH** (for Sepolia testnet)
    - Get free test ETH from: https://sepoliafaucet.com/
-
-### For IPFS (Optional)
-
-6. **Infura Account** (free tier available)
-   - Sign up at: https://infura.io/
-   - Create a project and get Project ID and Secret
 
 ## Installation
 
-### Step 1: Clone or Download
+### Step 1: Clone or Navigate
 
 ```bash
 cd web3/ownnet-vault
@@ -104,221 +179,90 @@ cd web3/ownnet-vault
 npm install
 ```
 
-This will install:
-- React and React DOM
-- Vite (build tool)
-- ethers.js (Ethereum library)
-- ipfs-http-client (IPFS integration)
-
-### Step 3: Verify Installation
+### Step 3: Configure Environment
 
 ```bash
-npm list --depth=0
+cp .env.example .env
 ```
 
-You should see the installed packages listed.
-
-## Configuration
-
-### Environment Variables (Optional)
-
-Create a `. env` file in the project root:
+Edit `.env` with your values:
 
 ```env
-# IPFS Configuration (optional)
-VITE_INFURA_PROJECT_ID=your_infura_project_id
-VITE_INFURA_PROJECT_SECRET=your_infura_project_secret
+# Required for IPFS storage
+VITE_PINATA_JWT=your_pinata_jwt_token_here
 
-# Contract Address (after deployment)
-VITE_CONTRACT_ADDRESS=your_deployed_contract_address
+# Optional: Custom Pinata gateway
+VITE_PINATA_GATEWAY=https://gateway.pinata.cloud/ipfs/
+
+# Optional: Smart contract address (for blockchain sync)
+VITE_CONTRACT_ADDRESS=0xYourDeployedContractAddress
 ```
 
-### Smart Contract Configuration
-
-1. Open `src/utils/web3.js`
-2. Replace `YOUR_CONTRACT_ADDRESS` with your deployed contract address (after deployment)
-
-## Running Locally
-
-### Development Mode
+### Step 4: Run Development Server
 
 ```bash
 npm run dev
 ```
 
-This starts the development server at `http://localhost:3000`
-
-### Production Build
-
-```bash
-npm run build
-```
-
-This creates an optimized build in the `dist/` folder.
-
-### Preview Production Build
-
-```bash
-npm run preview
-```
+Open http://localhost:3000
 
 ## Smart Contract Deployment
 
-### Method 1: Using Remix IDE (Recommended for Beginners)
+### Using Remix IDE (Recommended)
 
-Remix is an online IDE that requires no installation.
+1. Open https://remix.ethereum.org/
+2. Create new file: `DataVault.sol`
+3. Copy content from `contracts/DataVault.sol`
+4. Compile with Solidity 0.8.19+
+5. Deploy to Sepolia testnet:
+   - Environment: Injected Provider - MetaMask
+   - Ensure MetaMask connected to Sepolia
+   - Click Deploy
+   - Confirm transaction
+6. Copy deployed contract address
+7. Add to `.env`: `VITE_CONTRACT_ADDRESS=0x...`
 
-#### Step-by-Step Deployment:
+### Smart Contract Functions
 
-#### Step 1: Open Remix
-
-1. Go to https://remix.ethereum.org/
-2. Create a new file called `DataVault.sol`
-
-#### Step 2: Copy Contract Code
-
-1. Open `contracts/DataVault.sol` from this project
-2. Copy the entire content
-3. Paste into Remix's `DataVault.sol`
-
-#### Step 3: Compile the Contract
-
-1. Click the "Solidity Compiler" icon (left sidebar)
-2. Set compiler version to `0.8.19` or higher
-3. Click "Compile DataVault.sol"
-4. You should see a green checkmark if successful
-
-#### Step 4: Deploy to Testnet
-
-1. Click the "Deploy & Run Transactions" icon
-2. Set environment to "Injected Provider - MetaMask"
-3. MetaMask will popup - confirm connection
-4. Ensure you're on Sepolia testnet:
-   - Open MetaMask
-   - Click network dropdown
-   - Select "Sepolia" (or add it if not visible)
-5. Click "Deploy" button
-6. Confirm the transaction in MetaMask
-7. Wait for deployment (usually 15-30 seconds)
-
-#### Step 5: Get Contract Address
-
-1. After deployment, find your contract in "Deployed Contracts"
-2. Click the copy icon next to the contract address
-3. Save this address - you'll need it for your app
-
-#### Step 6: Update Your App
-
-1. Open `src/utils/web3.js`
-2. Replace `YOUR_CONTRACT_ADDRESS` with your deployed address
-
-### Method 2: Using Hardhat (Advanced)
-
-For local development and testing:
-
-```bash
-# Install Hardhat
-npm install --save-dev hardhat
-
-# Initialize Hardhat project
-npx hardhat init
-
-# Create deployment script in scripts/deploy.js
-# Run deployment
-npx hardhat run scripts/deploy.js --network sepolia
-```
-
-### Network Configuration
-
-#### Sepolia Testnet Details:
-
-| Parameter | Value |
-|-----------|-------|
-| Network Name | Sepolia |
-| Chain ID | 11155111 |
-| RPC URL | https://sepolia.infura.io/v3/YOUR_INFURA_KEY |
-| Explorer | https://sepolia.etherscan.io/ |
-
-#### Adding Sepolia to MetaMask:
-
-1. Open MetaMask
-2. Click network dropdown
-3. Click "Add Network"
-4. Enter the details above
-5. Click "Save"
-
-## Testing
-
-### Run Tests
-
-```bash
-npm run test
-```
-
-### Manual Testing Checklist
-
-#### Basic Functionality:
-
-- [ ] Vault setup with new password
-- [ ] Password strength indicator works
-- [ ] Vault unlock with correct password
-- [ ] Vault unlock fails with wrong password
-- [ ] Lock vault functionality
-
-#### File Operations:
-
-- [ ] Upload file (encrypted)
-- [ ] Download file (decrypted correctly)
-- [ ] Delete file
-- [ ] Multiple file uploads
-
-#### Note Operations:
-
-- [ ] Create encrypted note
-- [ ] Save note
-- [ ] Note appears in file list
-
-#### Wallet Connection:
-
-- [ ] Connect MetaMask
-- [ ] Display wallet address
-- [ ] Display ETH balance
-- [ ] Disconnect wallet
-
-#### Smart Contract (if deployed):
-
-- [ ] File hash registration on blockchain
-- [ ] View user's registered files
-- [ ] Transaction confirmation
+| Function | Description |
+|----------|-------------|
+| `updateManifest(cid)` | Store manifest CID on blockchain |
+| `getManifestCID(address)` | Retrieve user's manifest CID |
+| `hasVault(address)` | Check if user has a vault |
+| `addFile(hash)` | Register file hash |
+| `getUserFiles()` | Get all user files |
 
 ## Project Structure
 
 ```
 ownnet-vault/
 ├── contracts/
-│ └── DataVault.sol# Smart contract
+│   └── DataVault.sol           # Smart contract with manifest support
 ├── public/
-│   └── vault.svg# App icon
+│   └── vault.svg               # App icon
 ├── src/
 │   ├── components/
-│   │ ├── FileList.jsx# File list display
-│   │   ├── FileUpload.jsx# File upload interface
-│   │   ├── NoteEditor.jsx# Note creation
-│   │   ├── SetupModal.jsx# Initial setup
-│   │   ├── StatusBar.jsx# Status indicators
-│   │   ├── VaultUnlockModal.jsx# Unlock screen
-│   │   └── WalletConnect.jsx# Wallet connection
+│   │   ├── FileList.jsx        # File list display
+│   │   ├── FileUpload.jsx      # File upload interface
+│   │   ├── NoteEditor.jsx      # Note creation
+│   │   ├── SetupModal.jsx      # Initial setup
+│   │   ├── StatusBar.jsx       # Status indicators
+│   │   ├── VaultUnlockModal.jsx # Unlock screen
+│   │   └── WalletConnect.jsx   # Wallet connection
 │   ├── utils/
-│   │   ├── encryption.js# Web Crypto API utilities
-│   │   ├── ipfs.js# IPFS integration
-│   │   └── web3.js# Ethereum interaction
-│   ├── App.jsx# Main application
-│   ├── index.css# Styles
-│   └── main.jsx# Entry point
-├── index.html# HTML template
-├── package.json# Dependencies
-├── vite.config.js# Vite configuration
-└── README.md# This file
+│   │   ├── encryption.js       # Web Crypto API utilities
+│   │   ├── ipfs.js             # Pinata IPFS integration
+│   │   ├── manifest.js         # Manifest creation/management
+│   │   └── web3.js             # Ethereum interaction
+│   ├── App.jsx                 # Main application
+│   ├── index.css               # Styles
+│   └── main.jsx                # Entry point
+├── .env.example                # Environment template
+├── package.json                # Dependencies
+├── vite.config.js              # Vite configuration
+├── DEPLOYMENT.md               # Deployment guide
+├── USER_MANUAL.md              # User documentation
+└── README.md                   # This file
 ```
 
 ## How It Works
@@ -327,51 +271,58 @@ ownnet-vault/
 
 ```
 User Input
-↓
+    ↓
 Client-Side Encryption (Browser)
-↓
+    ↓
 Encrypted Data
-↓
-┌─────────────────┬─────────────────┐
-│| |
-│ Local Storage | IPFS (Optional) |
-│| |
-└─────────────────┴─────────────────┘
-↓
-┌──────────────────────────────────┐
-│ Blockchain (Optional) |
-│ - File hash |
-│ - Ownership proof |
-│ - Timestamp|
-└──────────────────────────────────┘
+    ↓
+    ┌─────────────────┬─────────────────────────────┐
+    │                 │                              │
+    │ localStorage    │         IPFS (Pinata)        │
+    │ (Metadata)     │   - Encrypted Files          │
+    │                 │   - Encrypted Manifest       │
+    │                 │                              │
+    └─────────────────┴─────────────────────────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │   Blockchain (Optional)│
+            │   - Manifest CID      │
+            │   - Cross-device sync │
+            └───────────────────────┘
 ```
 
 ### Encryption Process
 
 1. **User creates password**
-   - Password goes through PBKDF2 (100,000 iterations)
+   - Password goes through PBKDF2 (150,000 iterations)
    - Generates AES-256 encryption key
 
-2. **User uploads file/note**
-   - Data is encrypted with AES-256-GCM
-   - Random IV (initialization vector) generated
-   - IV + encrypted data combined
+2. **User uploads file**
+   - Data encrypted with AES-256-GCM
+   - Random IV generated
+   - Uploaded to IPFS (via Pinata)
 
-3. **Storage**
-   - Encrypted data saved locally or to IPFS
-   - Original data NEVER leaves browser unencrypted
+3. **Manifest update**
+   - File metadata added to manifest
+   - Manifest encrypted with same password
+   - Manifest uploaded to IPFS
+   - Manifest CID linked to wallet on blockchain
 
-4. **Decryption**
-   - User enters password
-   - Key regenerated from password
-   - Encrypted data decrypted locally
+4. **Cross-device access**
+   - User connects wallet on new device
+   - Smart contract returns manifest CID
+   - Manifest downloaded from IPFS
+   - Decrypted with password
+   - Files displayed
 
 ### Key Security Points
 
-- We NEVER store your password
-- We NEVER see your data
-- Keys are derived locally
-- All crypto happens in browser
+- We NEVER store your password (only SHA-256 hash for verification)
+- We NEVER see your data (encryption happens in browser)
+- Keys derived locally from password
+- Manifest is encrypted before upload to IPFS
+- Only user with password can decrypt
 
 ## Security
 
@@ -379,8 +330,9 @@ Encrypted Data
 
 | Component | Algorithm |
 |-----------|-----------|
-| Key Derivation | PBKDF2-SHA256 (100,000 iterations) |
+| Key Derivation | PBKDF2-SHA256 (150,000 iterations) |
 | Encryption | AES-256-GCM |
+| Password Hash | SHA-256 |
 | IV Size | 96 bits (random) |
 | Key Size | 256 bits |
 
@@ -391,9 +343,10 @@ Encrypted Data
    - Mix of uppercase, lowercase, numbers, symbols
    - Use a password manager
 
-2. **Backup Your Password**
-   - We CANNOT recover your data without the password
+2. **Backup Recovery Phrase**
+   - Write down your 12-word recovery phrase
    - Store it securely offline
+   - We CANNOT recover your data without it
 
 3. **Keep Seed Phrase Safe**
    - If using MetaMask, backup your seed phrase
@@ -401,25 +354,21 @@ Encrypted Data
 
 ### Known Limitations
 
-- Brute force attacks possible with weak passwords
-- Data lost if password forgotten
-- Local storage can be cleared by browser
+- Data lost if password AND recovery phrase forgotten
+- IPFS storage requires Pinata (free tier: 1GB)
+- Blockchain transactions cost gas fees
 
 ## Future Improvements
 
 ### Planned Features
 
-- [ ] Social recovery (multi-sig)
 - [ ] File sharing with time-limited access
 - [ ] Biometric unlock
 - [ ] Mobile app
-- [ ] E2EE sync across devices
-- [ ] Dead man's switch
+- [ ] Social recovery (multi-sig)
 - [ ] Decentralized identity integration
 
 ### Contributing
-
-We welcome contributions! Please follow these steps:
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -436,20 +385,24 @@ MIT License - See LICENSE file for details.
 ## Quick Start Summary
 
 ```bash
-# 1. Navigate to project
+# 1. Navigate toproject
 cd web3/ownnet-vault
 
 # 2. Install dependencies
 npm install
 
-# 3. Start development server
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with your Pinata JWT
+
+# 4. Start development server
 npm run dev
 
-# 4. Open browser
+# 5. Open browser
 # http://localhost:3000
 
-# 5. (Optional) Deploy smart contract via Remix
-# 6. (Optional) Update CONTRACT_ADDRESS in src/utils/web3.js
+# 6. (Optional) Deploy smart contract via Remix
+# 7. (Optional) Add contract address to .env
 ```
 
 ## Support
@@ -457,34 +410,10 @@ npm run dev
 If you encounter any issues:
 
 1. Check the browser console for errors
-2. Ensure MetaMask is installed and unlocked
-3. Verify you're on Sepolia testnet (for blockchain features)
-4. Try clearing browser cache and local storage
-
-## Hackathon Submission
-
-This project was built for the **Infrastructure & Digital Rights** track, focusing on:
-
-- Data ownership
-- Privacy-preserving technologies
-- Censorship-resistant storage
-- User-controlled encryption
-
-### Demo Video
-
-[Link to demo video showing:
-1. Setting up vault
-2. Encrypting a file
-3. Downloading and decrypting
-4. Optional blockchain verification]
-
-### Pitch
-
-**Problem**: Users don't control their data on centralized platforms.
-
-**Solution**: Client-side encrypted vault where only users hold the keys.
-
-**Impact**: Restores privacy, prevents data exploitation, empowers users with true ownership.
+2. Ensure Pinata JWT is configured
+3. Ensure MetaMask is installed and unlocked (for blockchain features)
+4. Verify you're on Sepolia testnet (for blockchain features)
+5. Try clearing browser cache
 
 ---
 
