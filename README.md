@@ -213,7 +213,7 @@ Open http://localhost:3000
 1. Open https://remix.ethereum.org/
 2. Create new file: `DataVault.sol`
 3. Copy content from `contracts/DataVault.sol`
-4. Compile with Solidity 0.8.19+
+4. Compile with Solidity 0.8.24
 5. Deploy to Sepolia testnet:
    - Environment: Injected Provider - MetaMask
    - Ensure MetaMask connected to Sepolia
@@ -231,6 +231,312 @@ Open http://localhost:3000
 | `hasVault(address)` | Check if user has a vault |
 | `addFile(hash)` | Register file hash |
 | `getUserFiles()` | Get all user files |
+
+---
+
+## Testing Smart Contract in Remix
+
+### Prerequisites
+
+- [ ] MetaMask installed and unlocked
+- [ ] Sepolia testnet selected in MetaMask
+- [ ] Test ETH in wallet (0.05+ ETH recommended)
+- [ ] Contract deployed on Sepolia
+
+### Get Test ETH
+
+Use any of these free faucets:
+
+| Faucet | URL | Amount | Requirements |
+|--------|-----|--------|--------------|
+| **PoW Faucet** | https://sepolia-faucet.pk910.de/ | 0.05+ ETH | None (mine in browser) |
+| **QuickNode** | https://faucet.quicknode.com/ethereum/sepolia | 0.1 ETH | None |
+| **Alchemy** | https://sepoliafaucet.com/ | 0.5 ETH | Free account |
+| **Infura** | https://www.infura.io/faucet/sepolia | 0.5 ETH | Free account |
+
+### Adding Sepolia Network to MetaMask
+
+If Sepolia is not visible:
+
+1. Open MetaMask
+2. Go to **Settings** → **Advanced**
+3. Enable **"Show test networks"**
+4. Go back to main screen
+5. Click network dropdown
+6. Select **"Sepolia"** under "Test Networks"
+
+Or add manually:
+
+| Field | Value |
+|-------|-------|
+| Network Name | Sepolia |
+| RPC URL | https://rpc.sepolia.org |
+| Chain ID | 11155111 |
+| Currency Symbol | SepoliaETH |
+| Block Explorer | https://sepolia.etherscan.io |
+
+### Step 1: Open Remix IDE
+
+1. Go to: **https://remix.ethereum.org/**
+2. Create new file: Click "File Explorers" → "Create New File"
+3. Name it: `DataVault.sol`
+4. Copy contract code from `contracts/DataVault.sol`
+5. Paste into Remix editor
+
+### Step 2: Compile Contract
+
+1. Click **"Solidity Compiler"** (S icon) on left sidebar
+2. Select compiler version: **0.8.24**
+3. Click **"Compile DataVault.sol"**
+4. Wait for green checkmark ✓
+
+```
+Expected Output:
+✓ Compilation successful
+```
+
+### Step 3: Deploy Contract
+
+1. Click **"Deploy & Run Transactions"** (Ethereum icon) on left sidebar
+2. Set **Environment**: **"Injected Provider - MetaMask"**
+3. MetaMask popup → Click **"Connect"**
+4. Verify **Network**: Shows `Sepolia (11155111)`
+5. Verify **Account**: Shows your wallet address
+6. Verify **Contract**: Shows `DataVault`
+7. Click **"Deploy"**
+8. MetaMask popup → Click **"Confirm"**
+9. Wait for deployment (15-30 seconds)
+
+```
+Expected Output:
+✓ Transaction confirmed
+✓ Deployed Contracts section appears
+✓ DataVault contract visible
+```
+
+### Step 4: Find Your Contract Address
+
+In Remix bottom panel:
+
+```
+Deployed Contracts
+▼ DataVault
+  at 0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99
+  📋 (copy icon)
+```
+
+1. Click the copy icon 📋 next to the address
+2. Save this address for your `.env` file
+
+### Step 5: Copy Contract Address to .env
+
+```bash
+# Edit your .env file
+VITE_CONTRACT_ADDRESS=0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99
+```
+
+### Step 6: Test Contract Functions
+
+#### Test 1: Check Contract Owner
+
+```
+Function: owner()
+Input: (none)
+Click: "call"
+
+Expected Output:
+address: 0xYourWalletAddress
+```
+
+#### Test 2: Check if Contract is Paused
+
+```
+Function: paused()
+Input: (none)
+Click: "call"
+
+Expected Output:
+bool: false
+```
+
+#### Test 3: Check if Vault Exists
+
+```
+Function: hasVault(address)
+Input: 0xYourWalletAddress  (your MetaMask address)
+Click: "call"
+
+Expected Output:
+bool: false  (no vault created yet)
+```
+
+#### Test 4: Create Vault (Costs Gas!)
+
+```
+Function: updateManifest(string)
+Input: QmTest123456  (test IPFS CID)
+Click: "transact"  (NOT "call")
+MetaMask: Confirm transaction
+Wait: 15-30 seconds
+
+Expected Output:
+✓ Transaction confirmed
+✓ Event: ManifestUpdated emitted
+```
+
+#### Test 5: Verify Vault Created
+
+```
+Function: hasVault(address)
+Input: 0xYourWalletAddress
+Click: "call"
+
+Expected Output:
+bool: true  (vault now exists!)
+```
+
+#### Test 6: Get Manifest CID
+
+```
+Function: getManifestCID(address)
+Input: 0xYourWalletAddress
+Click: "call"
+
+Expected Output:
+manifestCID: "QmTest123456"
+lastUpdated: <timestamp>
+```
+
+#### Test 7: Add File
+
+```
+Function: addFile(string)
+Input: QmFileHash123456789
+Click: "transact"  (NOT "call")
+MetaMask: Confirm transaction
+
+Expected Output:
+✓ Transaction confirmed
+✓ Event: FileAdded emitted
+```
+
+#### Test 8: Get File Count
+
+```
+Function: getFileCount()
+Input: (none)
+Click: "call"
+
+Expected Output:
+uint256: 1  (one file added)
+```
+
+#### Test 9: Get User Files
+
+```
+Function: getUserFiles()
+Input: (none)
+Click: "call"
+
+Expected Output:
+Array of file records
+```
+
+### Common Testing Errors & Solutions
+
+#### Error: "invalid address"
+
+```
+Error: Error encoding arguments: TypeError: invalid address
+```
+
+**Solution:** Enter your wallet address, not the contract address.
+
+| Wrong | Correct |
+|-------|---------|
+| `0x9D7f74d0...` (contract) | `0x5B38Da6...` (your wallet) |
+
+#### Error: "Cannot start session"
+
+```
+Error: Cannot start session for 0x... (address is a contract)
+```
+
+**Solution:** Don't use "At Address" field. Use "Deployed Contracts" section instead.
+
+#### Error: "Insufficient funds"
+
+```
+Error: Insufficient funds for gas
+```
+
+**Solution:** Get more test ETH from faucet (see Prerequisites).
+
+#### Error: "Wrong network"
+
+```
+Error: Please switch to Sepolia network
+```
+
+**Solution:** 
+1. Open MetaMask
+2. Click network dropdown
+3. Select **"Sepolia"**
+
+### Testing Checklist
+
+Complete all tests in order:
+
+- [ ] `owner()` returns your address
+- [ ] `paused()` returns `false`
+- [ ] `hasVault(address)` returns `false`
+- [ ] `updateManifest(string)` transaction succeeds
+- [ ] `hasVault(address)` returns `true`
+- [ ] `getManifestCID(address)` returns CID
+- [ ] `addFile(string)` transaction succeeds
+- [ ] `getFileCount()` returns `1`
+- [ ] `getUserFiles()` returns file array
+
+### Gas Costs (Estimated)
+
+| Function | Gas | Cost (Sepolia) |
+|----------|-----|----------------|
+| `Deploy` | ~1,200,000 | ~0.01 ETH |
+| `updateManifest()` | ~80,000 | ~0.001 ETH |
+| `addFile()` | ~80,000 | ~0.001 ETH |
+| `hasVault()` | ~3,000 | Free (view) |
+| `getManifestCID()` | ~3,000 | Free (view) |
+| `getFileCount()` | ~3,000 | Free (view) |
+
+### Viewing on Etherscan
+
+After deployment, verify your contract:
+
+1. Go to: **https://sepolia.etherscan.io/**
+2. Paste your contract address
+3. You should see:
+   - Contract creation transaction
+   - All function calls
+   - Events emitted
+   - Transaction history
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Remix not loading | Clear browser cache, try incognito mode |
+| MetaMask not detected | Install/enable MetaMask extension |
+| Transaction pending | Wait 30 seconds, check Sepolia network status |
+| Contract not visible | Make sure deployed on Sepolia, not Mainnet |
+| Function call fails | Check input format (address vs string) |
+
+### Next Steps After Testing
+
+1. Copy contract address to `.env`
+2. Run app locally: `npm run dev`
+3. Test file upload in app
+4. Verify IPFS upload
+5. Deploy to Vercel
 
 ## Project Structure
 
