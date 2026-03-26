@@ -141,8 +141,49 @@ export async function importKey(keyBase64) {
   );
 }
 
-export function hashPassword(password) {
-  return btoa(password);
+export async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + 'ownnet-vault-pepper');
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function verifyPassword(password, storedHash) {
+  const hash = await hashPassword(password);
+  return hash === storedHash;
+}
+
+export async function deriveKeyFromPassword(password) {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+  
+  const salt = encoder.encode('ownnet-vault-salt-v2');
+  
+  return await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: 150000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+export async function generateRecoveryKey() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function generateKeyFromPassword(password, salt) {
