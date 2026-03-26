@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import SetupModal from './components/SetupModal';
 import VaultUnlockModal from './components/VaultUnlockModal';
 import FileUpload from './components/FileUpload';
@@ -6,6 +6,8 @@ import FileList from './components/FileList';
 import NoteEditor from './components/NoteEditor';
 import WalletConnect from './components/WalletConnect';
 import StatusBar from './components/StatusBar';
+import ErrorModal from './components/ErrorModal';
+import ConfirmModal from './components/ConfirmModal';
 import { useTheme } from './hooks/useTheme';
 import {
   encryptFile,
@@ -18,21 +20,51 @@ import {
   saveToLocalStorage,
   loadFromLocalStorage,
   uploadToIPFS,
-  downloadFromIPFS
+  downloadFromIPFS,
+  initIPFS,
+  isPinataConfigured,
+  deleteFromLocalStorage
 } from './utils/ipfs';
+import {
+  hashPassword,
+  verifyPassword
+} from './utils/encryption';
 import {
   connectWallet,
   registerFileHash,
   getUserFiles,
   getWalletAddress,
   getBalance,
-  formatAddress
+  formatAddress,
+  updateManifestOnChain,
+  getManifestFromChain,
+  hasVaultOnChain,
+  isContractConfigured
 } from './utils/web3';
+import {
+  createManifest,
+  addFileToManifest,
+  removeFileFromManifest,
+  encryptManifest,
+  decryptManifest,
+  getManifestIdForVault,
+  getManifestSummary
+} from './utils/manifest';
+import {
+  createAndStoreWallet,
+  restoreWalletFromMnemonic,
+  restoreWalletFromEncrypted,
+  getStoredWallet,
+  clearStoredWallet
+} from './utils/wallet';
 
 const STORAGE_KEY_VAULT = 'ownnet-vault-data';
-const STORAGE_KEY_PASSWORD_HASH = 'ownnet-vault-password';
+const STORAGE_KEY_PASSWORD_HASH = 'ownnet-vault-password-hash';
 const STORAGE_KEY_FILES = 'ownnet-vault-files';
-const STORAGE_KEY_RECOVERY = 'ownnet-vault-recovery';
+const STORAGE_KEY_RECOVERY = 'ownnet-vault-recovery-hash';
+const STORAGE_KEY_VAULT_ID = 'ownnet-vault-id';
+const STORAGE_KEY_MANIFEST_CID = 'ownnet-vault-manifest-cid';
+const STORAGE_KEY_ENCRYPTED_PASSWORD = 'ownnet-vault-encrypted-password';
 
 function App() {
   const { isDark, toggle: toggleTheme } = useTheme();
@@ -41,14 +73,30 @@ function App() {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [password, setPassword] = useState(null);
   const [files, setFiles] = useState([]);
+  const [manifest, setManifest] = useState(null);
+  const [vaultId, setVaultId] = useState(null);
+  const [manifestCID, setManifestCID] = useState(null);
+  const [internalWallet, setInternalWallet] = useState(null);
   const [walletAddress, setWalletAddress] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
   const [activeTab, setActiveTab] = useState('files');
-  const [loading, setLoading] = useState(true);
-
+const [loading, setLoading] = useState(true);
+  const [ipfsReady, setIpfsReady] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [errorTitle, setErrorTitle] = useState('Error');
+  const [confirmMessage, setConfirmMessage] = useState(null);
+  const [confirmTitle, setConfirmTitle] = useState('Confirm');
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [pendingRecoveryPhrase, setPendingRecoveryPhrase] = useState(null);
+  
+  const setupInProgress = useRef(false);
+  
   useEffect(() => {
     const storedPasswordHash = localStorage.getItem(STORAGE_KEY_PASSWORD_HASH);
     const storedFiles = localStorage.getItem(STORAGE_KEY_FILES);
+    const storedVaultId = localStorage.getItem(STORAGE_KEY_VAULT_ID);
+    const storedManifestCID = localStorage.getItem(STORAGE_KEY_MANIFEST_CID);
     
     if (storedPasswordHash) {
       setIsSetup(false);
@@ -63,84 +111,287 @@ function App() {
       }
     }
     
+    if (storedVaultId) {
+      setVaultId(storedVaultId);
+    }
+    
+    if (storedManifestCID) {
+      setManifestCID(storedManifestCID);
+    }
+    
+    initIPFS();
+    setIpfsReady(isPinataConfigured());
+    
     setLoading(false);
   }, []);
-
+  
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(files));
   }, [files]);
-
-  const handleSetupComplete = (masterPassword, recoveryPhrase, isCancelled) => {
-    // Handle cancel from setup modal - go to locked screen
+  
+  const handleSetupComplete = async (masterPassword, recoveryPhrase, isCancelled) => {
+    if (setupInProgress.current) {
+      return;
+    }
+    setupInProgress.current = true;
+    
     if (isCancelled) {
       setIsSetup(false);
       setShowUnlockModal(false);
+      setupInProgress.current = false;
       return;
     }
     
     if (!masterPassword) {
+      setupInProgress.current = false;
       return;
     }
     
     const strength = checkPasswordStrength(masterPassword);
     if (strength === 'weak') {
-      alert('Please choose a stronger password');
+      setErrorMessage('Please choose a stronger password. Include uppercase, lowercase, numbers, and special characters.');
+      setErrorTitle('Weak Password');
+      setupInProgress.current = false;
       return;
     }
     
-    localStorage.setItem(STORAGE_KEY_PASSWORD_HASH, btoa(masterPassword));
+    const passwordHash = await hashPassword(masterPassword);
+    localStorage.setItem(STORAGE_KEY_PASSWORD_HASH, passwordHash);
+    
     if (recoveryPhrase) {
-      localStorage.setItem(STORAGE_KEY_RECOVERY, btoa(recoveryPhrase));
+      const recoveryHash = await hashPassword(recoveryPhrase);
+      localStorage.setItem(STORAGE_KEY_RECOVERY, recoveryHash);
+      
+      const encryptedPassword = await encryptText(masterPassword, recoveryPhrase);
+      localStorage.setItem(STORAGE_KEY_ENCRYPTED_PASSWORD, encryptedPassword);
     }
+    
+    try {
+      const wallet = await createAndStoreWallet(masterPassword);
+      setInternalWallet(wallet);
+      setWalletAddress(wallet.address);
+      console.log('Internal wallet created:', formatAddress(wallet.address));
+    } catch (e) {
+      console.error('Failed to create internal wallet:', e);
+    }
+    
+    const newManifest = createManifest(null);
+    setManifest(newManifest);
+    setVaultId(newManifest.vaultId);
+    localStorage.setItem(STORAGE_KEY_VAULT_ID, newManifest.vaultId);
+    
+    try {
+      await syncManifestToIPFS(newManifest, masterPassword);
+    } catch (e) {
+      console.error('Initial manifest sync failed:', e);
+    }
+    
     setPassword(masterPassword);
     setIsSetup(false);
     setIsLocked(false);
     setShowUnlockModal(false);
+    setupInProgress.current = false;
   };
 
-  const handleUnlock = (enteredCredential, isRecoveryPhrase = false) => {
+const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, providedPassword = null) => {
     const storedHash = localStorage.getItem(STORAGE_KEY_PASSWORD_HASH);
     const storedRecovery = localStorage.getItem(STORAGE_KEY_RECOVERY);
+    const storedVaultId = localStorage.getItem(STORAGE_KEY_VAULT_ID);
+    const storedManifestCID = localStorage.getItem(STORAGE_KEY_MANIFEST_CID);
+    const storedEncryptedPassword = localStorage.getItem(STORAGE_KEY_ENCRYPTED_PASSWORD);
+    
+    let verified = false;
+    let restoredWalletAddress = null;
+    let unlockPassword = null;
     
     if (isRecoveryPhrase) {
-      // Check recovery phrase
-      if (storedRecovery && btoa(enteredCredential) === storedRecovery) {
-        // Recovery phrase matches - derive password from it
-        setPassword(enteredCredential);
-        setIsLocked(false);
-        setShowUnlockModal(false);
-      } else {
-        alert('Invalid recovery phrase');
+      const cleanPhrase = enteredCredential.toLowerCase().trim();
+      const words = cleanPhrase.split(/\s+/).filter(w => w.length > 0);
+      
+      if (words.length !== 12) {
+        setErrorMessage('Recovery phrase must be exactly 12 words.');
+        setErrorTitle('Invalid Recovery Phrase');
+        return;
+      }
+      
+      try {
+        const { getWalletFromMnemonic } = await import('./utils/wallet');
+        const tempWallet = await getWalletFromMnemonic(cleanPhrase);
+        restoredWalletAddress = tempWallet.address;
+        
+        const storedEncryptedPasswordForRecovery = storedEncryptedPassword;
+        
+        if (storedEncryptedPasswordForRecovery) {
+          try {
+            unlockPassword = await decryptText(storedEncryptedPasswordForRecovery, cleanPhrase);
+          } catch (e) {
+            console.error('Failed to decrypt master password:', e);
+          }
+        }
+        
+        if (!unlockPassword && providedPassword) {
+          unlockPassword = providedPassword;
+        }
+        
+        if (!unlockPassword) {
+          setErrorMessage('Please enter your password in the recovery modal to complete vault recovery.');
+          setErrorTitle('Password Required');
+          return;
+        }
+        
+        const wallet = await restoreWalletFromMnemonic(cleanPhrase, unlockPassword);
+        setInternalWallet(wallet);
+        setWalletAddress(wallet.address);
+        console.log('Wallet restored from recovery phrase:', formatAddress(wallet.address));
+        
+        if (!storedRecovery) {
+          const recoveryHash = await hashPassword(cleanPhrase);
+          localStorage.setItem(STORAGE_KEY_RECOVERY, recoveryHash);
+          
+          const encryptedPassword = await encryptText(unlockPassword, cleanPhrase);
+          localStorage.setItem(STORAGE_KEY_ENCRYPTED_PASSWORD, encryptedPassword);
+          
+          const passwordHash = await hashPassword(unlockPassword);
+          localStorage.setItem(STORAGE_KEY_PASSWORD_HASH, passwordHash);
+        }
+        
+        verified = true;
+      } catch (e) {
+        console.error('Failed to restore wallet from mnemonic:', e);
+        setErrorMessage('The recovery phrase you entered is invalid. Please check your 12 words and try again.');
+        setErrorTitle('Invalid Recovery Phrase');
+        return;
       }
     } else {
-      // Check password
-      if (btoa(enteredCredential) === storedHash) {
-        setPassword(enteredCredential);
-        setIsLocked(false);
-        setShowUnlockModal(false);
+      if (storedHash && await verifyPassword(enteredCredential, storedHash)) {
+        verified = true;
+        unlockPassword = enteredCredential;
+        
+        try {
+          const storedWalletData = getStoredWallet();
+          if (storedWalletData && storedWalletData.encryptedPrivateKey) {
+            const wallet = await restoreWalletFromEncrypted(storedWalletData.encryptedPrivateKey, enteredCredential);
+            restoredWalletAddress = wallet.address;
+            setInternalWallet(wallet);
+            setWalletAddress(wallet.address);
+            console.log('Wallet restored from encrypted key:', formatAddress(wallet.address));
+          }
+        } catch (e) {
+          console.error('Failed to restore internal wallet:', e);
+        }
       } else {
-        alert('Incorrect password');
+        setErrorMessage('The password you entered is incorrect. Please try again.');
+        setErrorTitle('Incorrect Password');
+        return;
       }
+    }
+    
+    if (verified && unlockPassword) {
+      setPassword(unlockPassword);
+      
+      let manifestLoaded = false;
+      const walletAddr = restoredWalletAddress || walletAddress;
+      
+      if (walletAddr && isContractConfigured()) {
+        try {
+          const onChainManifest = await getManifestFromChain(walletAddr);
+          if (onChainManifest && onChainManifest.manifestCID) {
+            const manifestData = await loadManifestFromIPFS(onChainManifest.manifestCID, unlockPassword);
+            if (manifestData && manifestData.files) {
+              setManifest(manifestData);
+              setFiles(manifestData.files);
+              setVaultId(manifestData.vaultId);
+              localStorage.setItem(STORAGE_KEY_MANIFEST_CID, onChainManifest.manifestCID);
+              if (manifestData.vaultId) {
+                localStorage.setItem(STORAGE_KEY_VAULT_ID, manifestData.vaultId);
+              }
+              manifestLoaded = true;
+              console.log('Manifest loaded from blockchain:', manifestData.files.length, 'files');
+            }
+          }
+        } catch (e) {
+          console.error('Failed to load from blockchain:', e);
+        }
+      }
+      
+      if (!manifestLoaded && storedManifestCID) {
+        try {
+          const manifestData = await loadManifestFromIPFS(storedManifestCID, unlockPassword);
+          if (manifestData && manifestData.files) {
+            setManifest(manifestData);
+            setFiles(manifestData.files);
+            setVaultId(manifestData.vaultId);
+            manifestLoaded = true;
+            console.log('Manifest loaded from IPFS CID:', manifestData.files.length, 'files');
+          }
+        } catch (e) {
+          console.error('Failed to load manifest from IPFS:', e);
+        }
+      }
+      
+      if (!manifestLoaded) {
+        const storedFiles = localStorage.getItem(STORAGE_KEY_FILES);
+        if (storedFiles) {
+          try {
+            setFiles(JSON.parse(storedFiles));
+            console.log('Files loaded from localStorage');
+          } catch (e) {
+            console.error('Failed to parse stored files:', e);
+          }
+        }
+      }
+      
+      if (storedVaultId) {
+        setVaultId(storedVaultId);
+      }
+      
+      setIsLocked(false);
+      setShowUnlockModal(false);
     }
   };
 
   const handleReset = () => {
-    if (confirm('Are you sure? This will delete all your encrypted data.')) {
+    setConfirmMessage('This will delete all your encrypted data, files, and wallet. This action cannot be undone.');
+    setConfirmTitle('Reset Vault');
+    setConfirmAction(() => () => {
       localStorage.removeItem(STORAGE_KEY_PASSWORD_HASH);
       localStorage.removeItem(STORAGE_KEY_FILES);
       localStorage.removeItem(STORAGE_KEY_VAULT);
       localStorage.removeItem(STORAGE_KEY_RECOVERY);
+      localStorage.removeItem(STORAGE_KEY_VAULT_ID);
+      localStorage.removeItem(STORAGE_KEY_MANIFEST_CID);
+      localStorage.removeItem(STORAGE_KEY_ENCRYPTED_PASSWORD);
+      clearStoredWallet();
       setFiles([]);
+      setManifest(null);
+      setVaultId(null);
+      setManifestCID(null);
       setPassword(null);
+      setInternalWallet(null);
+      setWalletAddress(null);
       setIsSetup(true);
       setIsLocked(true);
+      setConfirmMessage(null);
+    });
+  };
+  
+  const handleConfirmAction = () => {
+    if (confirmAction) {
+      confirmAction();
     }
+    setConfirmMessage(null);
+    setConfirmAction(null);
+  };
+  
+  const handleCancelConfirm = () => {
+    setConfirmMessage(null);
+    setConfirmAction(null);
   };
 
   const handleFileUpload = async (file) => {
     try {
       const encrypted = await encryptFile(file, password);
-      const storageResult = await saveToLocalStorage('file-' + Date.now(), encrypted.data);
+      const storageResult = await uploadToIPFS(encrypted.data);
       
       const newFile = {
         id: Date.now().toString(),
@@ -151,10 +402,11 @@ function App() {
         timestamp: Date.now(),
         storageKey: storageResult.hash,
         ipfsHash: storageResult.hash,
-        isLocal: storageResult.local
+        isLocal: storageResult.local,
+        storageType: storageResult.local ? 'localStorage' : 'IPFS'
       };
       
-      if (walletAddress) {
+      if (walletAddress && !storageResult.local && isContractConfigured()) {
         try {
           await registerFileHash(storageResult.hash);
           newFile.onChain = true;
@@ -163,19 +415,43 @@ function App() {
         }
       }
       
-      setFiles(prev => [newFile, ...prev]);
+      const updatedFiles = [newFile, ...files];
+      setFiles(updatedFiles);
+      
+      let currentManifest = manifest;
+      if (!currentManifest) {
+        currentManifest = createManifest(vaultId);
+        setManifest(currentManifest);
+      }
+      
+      const updatedManifest = addFileToManifest(currentManifest, newFile);
+      setManifest(updatedManifest);
+      
+      try {
+        await syncManifestToIPFS(updatedManifest);
+      } catch (e) {
+        console.error('Failed to sync manifest:', e);
+      }
     } catch (error) {
       console.error('Upload failed:', error);
-      alert('Failed to encrypt and upload file');
+      setErrorMessage('Failed to encrypt and upload file. Please try again.');
+      setErrorTitle('Upload Error');
     }
   };
 
   const handleFileDownload = async (file) => {
     try {
-      const encryptedData = loadFromLocalStorage(file.storageKey);
+      let encryptedData;
+      
+      if (file.isLocal) {
+        encryptedData = loadFromLocalStorage(file.storageKey);
+      } else {
+        encryptedData = await downloadFromIPFS(file.ipfsHash || file.storageKey);
+      }
       
       if (!encryptedData) {
-        alert('File data not found');
+        setErrorMessage('File data not found. It may have been deleted from storage.');
+        setErrorTitle('Download Error');
         return;
       }
       
@@ -191,19 +467,44 @@ function App() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Download failed:', error);
-      alert('Failed to decrypt file. Wrong password?');
+      setErrorMessage('Failed to decrypt file. There may be an issue with the encryption key.');
+      setErrorTitle('Download Error');
     }
   };
 
-  const handleFileDelete = (fileId) => {
-    if (confirm('Are you sure you want to delete this file?')) {
-      setFiles(prev => prev.filter(f => f.id !== fileId));
-    }
+  const handleFileDelete = async (fileId) => {
+    setConfirmMessage('Are you sure you want to delete this file? It will be removed from your vault but remain on IPFS as encrypted backup.');
+    setConfirmTitle('Delete File');
+    setConfirmAction(() => async () => {
+      const fileToDelete = files.find(f => f.id === fileId);
+      
+      // Remove from localStorage if stored locally
+      if (fileToDelete && fileToDelete.isLocal && fileToDelete.storageKey) {
+        await deleteFromLocalStorage(fileToDelete.storageKey);
+      }
+      
+      const updatedFiles = files.filter(f => f.id !== fileId);
+      setFiles(updatedFiles);
+      
+      if (manifest) {
+        const updatedManifest = removeFileFromManifest(manifest, fileId);
+        setManifest(updatedManifest);
+        
+        try {
+          await syncManifestToIPFS(updatedManifest);
+        } catch (e) {
+          console.error('Failed to sync manifest after delete:', e);
+        }
+      }
+      setConfirmMessage(null);
+      setConfirmAction(null);
+    });
   };
 
   const handleNoteSave = async (title, content) => {
     try {
       const encrypted = await encryptText(content, password);
+      const storageResult = await uploadToIPFS(new TextEncoder().encode(encrypted));
       
       const newNote = {
         id: Date.now().toString(),
@@ -211,14 +512,33 @@ function App() {
         type: 'text/plain',
         size: content.length,
         timestamp: Date.now(),
-        encryptedContent: encrypted,
-        isNote: true
+        storageKey: storageResult.hash,
+        ipfsHash: storageResult.hash,
+        isNote: true,
+        storageType: storageResult.local ? 'localStorage' : 'IPFS'
       };
       
-      setFiles(prev => [newNote, ...prev]);
+      const updatedFiles = [newNote, ...files];
+      setFiles(updatedFiles);
+      
+      let currentManifest = manifest;
+      if (!currentManifest) {
+        currentManifest = createManifest(vaultId);
+        setManifest(currentManifest);
+      }
+      
+      const updatedManifest = addFileToManifest(currentManifest, newNote);
+      setManifest(updatedManifest);
+      
+      try {
+        await syncManifestToIPFS(updatedManifest);
+      } catch (e) {
+        console.error('Failed to sync manifest:', e);
+      }
     } catch (error) {
       console.error('Save note failed:', error);
-      alert('Failed to save note');
+      setErrorMessage('Failed to save note. Please try again.');
+      setErrorTitle('Save Error');
     }
   };
 
@@ -228,9 +548,29 @@ function App() {
       setWalletAddress(address);
       const balance = await getBalance();
       setWalletBalance(balance);
+      
+      if (!isLocked && password) {
+        try {
+          const onChainManifest = await getManifestFromChain(address);
+          if (onChainManifest && onChainManifest.manifestCID) {
+            const manifestData = await loadManifestFromIPFS(onChainManifest.manifestCID, password);
+            if (manifestData && manifestData.files) {
+              setManifest(manifestData);
+              setFiles(manifestData.files);
+              setVaultId(manifestData.vaultId);
+              localStorage.setItem(STORAGE_KEY_VAULT_ID, manifestData.vaultId);
+            }
+          }
+        } catch (e) {
+          console.warn('Could not load on-chain manifest:', e.message);
+        }
+      }
+      
       return address;
     } catch (error) {
-      console.error('Wallet connect error:', error);
+      if (!error.message?.includes('MetaMask')) {
+        console.error('Wallet connect error:', error);
+      }
       throw error;
     }
   };
@@ -269,6 +609,7 @@ function App() {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-main">OwnNet Vault</h1>
               <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Privacy-First Data Storage</p>
+              {syncing && <span className="text-xs text-main animate-pulse">Syncing...</span>}
             </div>
           </div>
           
@@ -283,6 +624,14 @@ function App() {
               </div>
             )}
             
+            {internalWallet && !isLocked && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary-background border border-border rounded-base text-xs text-muted-foreground">
+                <span className="w-2 h-2 rounded-full bg-success"></span>
+                <span className="font-mono">{formatAddress(internalWallet.address)}</span>
+                <span className="text-xs opacity-60">(Auto)</span>
+              </div>
+            )}
+            
             <button
               onClick={toggleTheme}
               className="flex items-center justify-center w-10 h-10 rounded-base border border-border bg-secondary-background hover:bg-background transition-colors"
@@ -291,12 +640,6 @@ function App() {
             >
               {isDark ? '☀️' : '🌙'}
             </button>
-            
-            <WalletConnect
-              onConnect={handleWalletConnect}
-              address={walletAddress}
-              balance={walletBalance}
-            />
           </div>
         </header>
         
@@ -329,9 +672,9 @@ function App() {
               </div>
               <div className="p-5 bg-secondary-background rounded-base border border-border text-center">
                 <div className="text-3xl mb-3">🌐</div>
-                <div className="font-semibold mb-2">Blockchain Verified</div>
+                <div className="font-semibold mb-2">Blockchain Synced</div>
                 <div className="text-sm text-muted-foreground">
-                  Optionally verify file ownership on the blockchain
+                  Connect wallet to sync your file list across devices
                 </div>
               </div>
             </div>
@@ -344,7 +687,7 @@ function App() {
                   <div className="text-6xl mb-6">🔒</div>
                   <h2 className="text-3xl sm:text-4xl font-bold mb-3 text-main">Vault is Locked</h2>
                   <p className="text-muted-foreground text-base sm:text-lg">
-                    Your files are encrypted and secure. Unlock to access them.
+                    Your files are encrypted and stored on IPFS. Unlock to access them from any device.
                   </p>
                 </div>
                 
@@ -383,9 +726,9 @@ function App() {
                   </div>
                   <div className="p-5 bg-secondary-background rounded-base border border-border text-center">
                     <div className="text-3xl mb-3">🌐</div>
-                    <div className="font-semibold mb-2">Blockchain Verified</div>
+                    <div className="font-semibold mb-2">Blockchain Synced</div>
                     <div className="text-sm text-muted-foreground">
-                      Optionally verify file ownership on the blockchain
+                      Connect wallet to sync your file list across devices
                     </div>
                   </div>
                 </div>
@@ -432,6 +775,14 @@ function App() {
                 {activeTab === 'notes' && (
                   <NoteEditor onSave={handleNoteSave} />
                 )}
+                
+                {vaultId && (
+                  <div className="mt-4 p-3 bg-background rounded-base border border-border">
+                    <p className="text-xs text-muted-foreground">
+                      Vault ID: {vaultId.slice(0, 8)}...{vaultId.slice(-4)}
+                    </p>
+                  </div>
+                )}
               </div>
               
               <div className="lg:col-span-8 bg-secondary-background rounded-base p-5 sm:p-6 border border-border">
@@ -445,7 +796,9 @@ function App() {
             
             <div className="text-center mt-8">
               <p className="text-sm text-muted-foreground mb-3">
-                Your files are encrypted and stored locally. Lock the vault to require password on next access.
+                {walletAddress 
+                  ? 'Files are encrypted, stored on IPFS, and synced to blockchain for cross-device access.'
+                  : 'Connect wallet to enable cross-device sync via blockchain.'}
               </p>
               <button 
                 onClick={handleLock} 
@@ -457,13 +810,28 @@ function App() {
             </div>
             
             <StatusBar
-              walletConnected={!!walletAddress}
-              ipfsConnected={false}
+              internalWallet={!!internalWallet || !!walletAddress}
+              ipfsConnected={ipfsReady}
               encryptionReady={!!password}
             />
           </>
         )}
       </div>
+      
+      <ErrorModal 
+        message={errorMessage}
+        title={errorTitle}
+        onClose={() => setErrorMessage(null)}
+      />
+      
+      <ConfirmModal
+        message={confirmMessage}
+        title={confirmTitle}
+        confirmText={confirmTitle === 'Delete File' ? 'Delete' : 'Reset'}
+        danger={confirmTitle === 'Delete File' || confirmTitle === 'Reset Vault'}
+        onConfirm={handleConfirmAction}
+        onCancel={handleCancelConfirm}
+      />
     </div>
   );
 }
