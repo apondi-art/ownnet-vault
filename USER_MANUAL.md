@@ -1,6 +1,6 @@
 # OwnNet Vault - User Manual
 
-> A privacy-first data vault with client-side encryption and optional blockchain verification
+> A privacy-first data vault with client-side encryption and blockchain-verified cross-device sync
 
 ---
 
@@ -9,30 +9,71 @@
 1. [What is OwnNet Vault?](#what-is-ownnet-vault)
 2. [Quick Start](#quick-start)
 3. [Detailed Usage Guide](#detailed-usage-guide)
-4. [MetaMask Integration (Optional)](#metamask-integration-optional)
-5. [Security Information](#security-information)
-6. [Troubleshooting](#troubleshooting)
-7. [FAQ](#faq)
+4. [MetaMask Integration](#metamask-integration)
+5. [Cross-Device Sync](#cross-device-sync)
+6. [Security Information](#security-information)
+7. [Troubleshooting](#troubleshooting)
+8. [FAQ](#faq)
 
 ---
 
 ## What is OwnNet Vault?
 
-OwnNet Vault is a **secure file storage application** where only **YOU** can access your data.
+OwnNet Vault is a **secure file storage application** where only **YOU** can access your data, with **automatic blockchain sync** for cross-device access.
 
 ### Key Features
 
 | Feature | Description |
 |---------|-------------|
-| **Client-Side Encryption** | Your files are encrypted in your browser BEFORE being saved |
+| **Client-Side Encryption** | Files are encrypted in your browser BEFORE being saved |
 | **Password-Protected** | Only your password can decrypt your data |
-| **Local Storage** | Files are stored in your browser (no server needed) |
-| **Optional Blockchain** | Prove file ownership on Ethereum (requires MetaMask) |
-| **Works Offline** | No internet connection required for basic usage |
+| **IPFS Storage** | Files stored on decentralized IPFS (not local browser) |
+| **Auto Blockchain Sync** | Wallet auto-created for cross-device sync (no MetaMask needed) |
+| **Recovery Phrase** | 12-word backup to restore access from any device |
+| **Cross-Device Access** | Access your files from any device with password/phrase |
 
 ### In One Sentence
 
-**It's like a password-protected folder in your browser where files are scrambled so no one (not even us) can read them.**
+**Your files are encrypted, stored on IPFS, and syncable across devices automatically - no crypto knowledge required.**
+
+---
+
+## How Cross-Device Sync Works (Simplified)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    NO METAMASK NEEDED                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  WHEN YOU CREATE A VAULT:                                       │
+│  ─────────────────────────                                       │
+│  1. You enter password                                          │
+│  2. App AUTOMATICALLY creates a wallet for you                  │
+│  3. Wallet is encrypted with your password                      │
+│  4. You don't see, manage, or worry about it                    │
+│                                                                 │
+│  WHEN YOU LOGIN FROM ANOTHER DEVICE:                           │
+│  ─────────────────────────────────────                          │
+│  1. Enter your password OR recovery phrase                     │
+│  2. App restores your wallet automatically                       │
+│  3. Files sync from blockchain                                  │
+│  4. Everything just works!                                      │
+│                                                                 │
+│  WHAT YOU SEE:                                                  │
+│  ─────────────                                                  │
+│  ✓ Password prompt                                              │
+│  ✓ Recovery phrase backup                                       │
+│  ✓ Your files                                                   │
+│                                                                 │
+│  WHAT YOU DON'T SEE (HIDDEN):                                   │
+│  ────────────────────────────────                                │
+│  • Private keys                                                  │
+│  • Wallet addresses                                             │
+│  • Blockchain transactions                                      │
+│  • Crypto terminology                                           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -42,7 +83,7 @@ OwnNet Vault is a **secure file storage application** where only **YOU** can acc
 
 - Modern web browser (Chrome, Firefox, Edge, Safari)
 - Node.js 18+ (for running locally)
-- MetaMask extension (optional, for blockchain features)
+- MetaMask extension (optional, for cross-device sync)
 
 ### Installation
 
@@ -53,18 +94,23 @@ cd web3/ownnet-vault
 # 2. Install dependencies
 npm install
 
-# 3. Start development server
+# 3. Configure environment
+cp .env.example .env
+# Edit .env and add your Pinata JWT
+
+# 4. Start development server
 npm run dev
 
-# 4. Open browser to http://localhost:3000
+# 5. Open browser to http://localhost:3000
 ```
 
-### First Time Setup (30 seconds)
+### First Time Setup (2 minutes)
 
 1. Open the app in your browser
-2. Enter a **strong password** (8+ characters, mixed case, numbers, symbols)
-3. Click **"Create Vault"**
-4. You're ready to use the vault!
+2. Enter a **strong password** (12+ characters recommended)
+3. **Write down your 12-word recovery phrase**
+4. Verify your recovery phrase
+5. You're ready to use the vault!
 
 ---
 
@@ -75,447 +121,391 @@ npm run dev
 When you first open OwnNet Vault, you'll see a setup screen.
 
 ```
-┌─────────────────────────────────────────────────────┐
-│           Create Your Vault Password                │
-│                                                     │
-│  Master Password: [________________]               │
-│  Strength: ████████░░░░░░ medium                   │
-│                                                     │
-│  Confirm Password: [________________]              │
-│                                                     │
-│  [        Create Vault        ]                    │
-│                                                     │
-│  ⚠️ This password encrypts all your data.          │
-│     We cannot recover it if lost!                  │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│              Create Your Vault Password                      │
+│                                                             │
+│  Master Password: [____________________________]            │
+│  Strength: ████████████░░░░ strong                         │
+│                                                             │
+│  Confirm Password: [____________________________]          │
+│                                                             │
+│  [              Continue            ]                        │
+│                                                             │
+│  ⚠️ This password encrypts all your data.                  │
+│     Keep it safe - we cannot recover it!                    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **Password Requirements:**
-- Minimum 8 characters
-- Mix of uppercase and lowercase recommended
-- Include numbers and special characters for better security
-- **NEVER forget this password** - there is no recovery!
-
-**What Happens:**
-1. Your password is converted to an AES-256 encryption key
-2. A hash of your password is stored (for verification only)
-3. The vault unlocks and you can upload files
+- Minimum 8 characters (12+ recommended)
+- Mix of uppercase and lowercase
+- Include numbers and special characters
+- **Write it down securely!**
 
 ---
 
-### Step 2: Unlocking Your Vault (Returning Users)
+### Step 2: Recovery Phrase Setup
 
-If you've already created a vault, you'll see the unlock screen.
+After setting your password, you'll receive a 12-word recovery phrase.
 
 ```
-┌─────────────────────────────────────────────────────┐
-│            🔐 Unlock Your Vault                     │
-│                                                     │
-│  Master Password: [________________]               │
-│                                                     │
-│  [        Unlock Vault        ]                    │
-│                                                     │
-│  [ Create New Vault (Warning: deletes all data) ]  │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                   Recovery Phrase                           │
+│                                                             │
+│  Write down these 12 words. You'll need them if you        │
+│  forget your password or want to access from another       │
+│  device.                                                    │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 1. apple    2. banana   3. cherry   4. date        │   │
+│  │ 5. elder    6. fig      7. grape    8. honey        │   │
+│  │ 9. ice      10. juice   11. kiwi    12. lemon      │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  [📋 Copy to Clipboard]                                      │
+│                                                             │
+│  ⚠️ IMPORTANT: Store this phrase safely!                    │
+│     If you lose both your password AND this phrase,        │
+│     your data cannot be recovered.                          │
+│                                                             │
+│  [         I've Written It Down          ]                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**What Happens:**
-1. Enter your password
-2. System compares with stored password hash
-3. If correct, vault unlocks
-4. If incorrect, you get an error message
+**Why Recovery Phrase?**
+- Access your files from any device
+- Restore access if you forget your password
+- One of two backup methods (password + phrase)
 
 ---
 
-### Step 3: Uploading Files
+### Step 3: Unlocking Your Vault
 
-Once unlocked, you'll see the main vault interface.
-
-```
-┌─────────────────────────────────────────────────────┐
-│  [📁 Files]  [📝 Notes]                            │
-│                                                     │
-│  ┌───────────────────────────────────────────────┐ │
-│  │                                               │ │
-│  │        📤 Drag & drop or click               │ │
-│  │           to upload a file                    │ │
-│  │                                               │ │
-│  └───────────────────────────────────────────────┘ │
-│                                                     │
-│  Selected: my_document.pdf (1.2 MB)               │
-│  [    🔐 Encrypt & Upload    ]                    │
-└─────────────────────────────────────────────────────┘
-```
-
-**How Encryption Works:**
+When returning to the app:
 
 ```
-┌────────────────────────────────────────────────────────┐
-│ YOUR FILE(my_document.pdf)                             │
-│          ↓                                              │
-│ ┌────────────────────────────────────────────┐        │
-│ │   BROWSER (Your Computer)                   │        │
-│ │                                             │        │
-│ │   1. Password → PBKDF2 → AES-256 Key      │        │
-│ │   2. Generate random IV                    │        │
-│ │   3. Encrypt file with AES-256-GCM        │        │
-│ │   4. Combine IV + Encrypted Data          │        │
-│ │                                             │        │
-│ └────────────────────────────────────────────┘        │
-│          ↓                                              │
-│ ENCRYPTED FILE (unreadable gibberish)                  │
-│          ↓                                              │
-│ ┌────────────────────────────────────────────┐        │
-│ │ localStorage (Your Browser)                 │        │
-│ │                                             │        │
-│ │   Encrypted file stored here               │        │
-│ │   Only YOU can decrypt with password        │        │
-│ │                                             │        │
-│ └────────────────────────────────────────────────────┘│
-└────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    🔐 Vault is Locked                        │
+│                                                             │
+│  Your files are encrypted and secure. Unlock to access them.│
+│                                                             │
+│  Master Password: [____________________________]            │
+│                                                             │
+│  [          🔓 Unlock Vault           ]                      │
+│                                                             │
+│  ───────────────── or ─────────────────                     │
+│                                                             │
+│  Use recovery phrase instead                                │
+│                                                             │
+│  Don't have a vault? Create new vault (deletes all data)   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Steps:**
-1. Click the upload zone or drag & drop a file
-2. File preview appears with size and type
-3. Click **"🔐 Encrypt & Upload"**
-4. File is encrypted and stored in your browser
-5. File appears in the list below
+**Two Ways to Unlock:**
+1. **Password** - For quick access on thesame device
+2. **Recovery Phrase** - For cross-device access or password recovery
 
 ---
 
-### Step 4: Viewing Your Files
+### Step 4: Uploading Files
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  📚 Your Files (3)                                  │
-│                                                     │
-│  📄 my_document.pdf  [🔐 Encrypted]                │
-│     1.2 MB • Jan 15, 2025 10:30 AM                 │
-│     [⬇️ Download] [🗑️ Delete]                      │
-│                                                     │
-│  📝 notes.txt  [🔐 Encrypted]                      │
-│     512 B • Jan 14, 2025 3:45 PM                   │
-│     [⬇️ Download] [🗑️ Delete]                      │
-│                                                     │
-│  🖼️ photo.png  [🔐 Encrypted]                      │
-│     2.5 MB • Jan 12, 2025 9:15 AM                  │
-│     [⬇️ Download] [🗑️ Delete]                      │
-└─────────────────────────────────────────────────────┘
-```
-
-**File Actions:**
-| Button | Action |
-|--------|--------|
-| **⬇️ Download** | Decrypts and downloads the original file |
-| **🗑️ Delete** | Permanently removes the file (asks for confirmation) |
-
----
-
-### Step 5: Creating Encrypted Notes
-
-Switch to the **Notes** tab to create text notes.
-
-```
-┌─────────────────────────────────────────────────────┐
-│  [📁 Files]  [📝 Notes]  ←─ Click Notes tab         │
-│                                                     │
-│  Note Title: [________________________]            │
-│                                                     │
-│  ┌───────────────────────────────────────────────┐ │
-│  │                                               │ │
-│  │  Write your secret note here...               │ │
-│  │  Everything is encrypted locally              │ │
-│  │  before saving.                               │ │
-│  │                                               │ │
-│  └───────────────────────────────────────────────┘ │
-│                                                     │
-│  85 characters                          [💾 Save]  │
-└─────────────────────────────────────────────────────┘
-```
-
-**Steps:**
-1. Enter a title (optional)
-2. Write your note in the text area
-3. Click **"💾 Save Encrypted Note"**
-4. Note is encrypted and appears in your Files list
-
----
-
-### Step 6: Locking Your Vault
-
-For security, you can lock your vault when stepping away.
-
-```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│     [📁 Files]  [📝 Notes]                          │
-│                                                     │
-│     ... your files ...                              │
-│                                                     │
-│                                                     │
-│          [ 🔒 Lock Vault ]                         │
-│                                                     │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  [📁 Files]  [📝 Notes]                                      │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │                                                         │ │
+│  │        📤 Drag & drop or click to upload               │ │
+│  │                                                         │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│  Selected: my_document.pdf (1.2 MB)                        │
+│                                                             │
+│  [         🔐 Encrypt & Upload to IPFS         ]            │
+│                                                             │
+│  Status: Uploading to IPFS... ████████░░ 80%               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **What Happens:**
-1. Password is cleared from memory
-2. You're returned to the unlock screen
-3. Must re-enter password to access files again
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ YOUR FILE (my_document.pdf)                                    │
+│         ↓                                                      │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │   BROWSER (Your Computer)                                  │ │
+│ │                                                            │ │
+│ │   1. Password → PBKDF2 → AES-256 Key                      │ │
+│ │   2. Generate random IV                                    │ │
+│ │   3. Encrypt file content                                  │ │
+│ │   4. Upload encrypted data to IPFS                         │ │
+│ │                                                            │ │
+│ └────────────────────────────────────────────────────────────┘ │
+│         ↓                                                      │
+│ IPFS HASH (QmX4F...)                                          │
+│         ↓                                                      │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │   MANIFEST UPDATE                                          │ │
+│ │                                                            │ │
+│ │   1. Add file metadata to manifest                         │ │
+│ │   2. Encrypt manifest                                      │ │
+│ │   3. Upload manifest to IPFS                               │ │
+│ │   4. If wallet connected: sync CID to blockchain           │ │
+│ │                                                            │ │
+│ └────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-### Theme Toggle
-
-Click the 🌙/☀️ button in the header to switch between light and dark mode.
+### Step 5: Viewing Your Files
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  🔐 OwnNet Vault                    [🌙] [🦊 Connect]│
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  📚 Your Files (3)                      Vault ID: abc12345  │
+│                                                             │
+│  📄 my_document.pdf  [🌐 IPFS] [🔐 Encrypted]              │
+│     1.2 MB • Jan 15, 2025 10:30 AM                         │
+│     [⬇️ Download] [🗑️ Delete]                               │
+│                                                             │
+│  📝 notes.txt  [🌐 IPFS] [🔐 Encrypted]                     │
+│     512 B • Jan 14, 2025 3:45 PM                            │
+│     [⬇️ Download] [🗑️ Delete]                               │
+│                                                             │
+│  🖼️ photo.png  [🌐 IPFS] [🔐 Encrypted]                     │
+│     2.5 MB • Jan 12, 2025 9:15 AM                           │
+│     [⬇️ Download] [🗑️ Delete]                               │
+│                                                             │
+│  Status:                                                    │
+│  ✓ Encryption: Ready                                         │
+│  ○ Wallet: Not Connected                                     │
+│  ✓ Storage: IPFS (Pinata)                                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**File Status Indicators:**
+
+| Indicator | Meaning |
+|-----------|---------|
+| 🌐 IPFS | File stored on IPFS (accessible anywhere) |
+| 🔐 Encrypted | File is encrypted with your password |
+| ✓ Syncing... | Manifest is being synced to IPFS |
+| 📱 Wallet | Wallet connected (enables cross-device sync) |
+
+---
+
+### Step 6: Connecting Wallet (For Cross-Device Sync)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  🔐 OwnNet Vault                    [🌙] [🦊 Connect Wallet] │
+└─────────────────────────────────────────────────────────────┘
+
+↓ After clicking "Connect Wallet"
+
+┌─────────────────────────────────────────────────────────────┐
+│  MetaMask                                                   │
+│                                                             │
+│  Connect to OwnNet Vault?                                   │
+│                                                             │
+│  This site is requesting access to:                        │
+│  • View your wallet address                                 │
+│  • Request transaction signatures                          │
+│                                                             │
+│  [Cancel]                          [Connect]                 │
+└─────────────────────────────────────────────────────────────┘
+
+↓ After connecting
+
+┌─────────────────────────────────────────────────────────────┐
+│  🔐 OwnNet Vault        [🌙] [0x1234...5678] 1.5 ETH         │
+│                              Connected!                      │
+│                                                             │
+│  Status:                                                    │
+│  ✓ Encryption: Ready                                        │
+│  ✓ Wallet: 0x1234...5678                                     │
+│  ✓ Storage: IPFS (Pinata)                                    │
+│                                                             │
+│  💡 Connect wallet on any device to sync your files!        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## MetaMask Integration (Optional)
+### Step 7: Accessing Files on Another Device
 
-### What is MetaMask?
+```
+┌─────────────────────────────────────────────────────────────┐
+│              🔐 Vault is Locked                              │
+│                                                             │
+│  Option 1: Use Password                                     │
+│  ─────────────────────                                      │
+│  This only works if you've used this device before.         │
+│  Password verification is stored in localStorage.           │
+│                                                             │
+│  Option 2: Use Recovery Phrase (Recommended)                │
+│  ─────────────────────────────────                            │
+│  Works from any device! Enter your 12-word phrase.         │
+│                                                             │
+│  Option 3: Connect Wallet + Recovery Phrase                 │
+│  ─────────────────────────────────                            │
+│  Most secure method:                                        │
+│  1. Connect wallet to fetch manifest CID from blockchain    │
+│  2. Download manifest from IPFS                             │
+│  3. Decrypt with recovery phrase                            │
+│  4. Access all your files!                                  │
+│                                                             │
+│  Master Password: [____________________________]            │
+│                                                             │
+│  [          🔓 Unlock Vault           ]                      │
+│                                                             │
+│  [ Use recovery phrase instead ]                             │
+└─────────────────────────────────────────────────────────────┘
+```
 
-MetaMask is a browser extension that lets you interact with Ethereum blockchain. It's **completely optional** for OwnNet Vault.
+---
+
+## MetaMask Integration
 
 ### Do You Need It?
 
 | Use Case | MetaMask Required? |
 |----------|---------------------|
-| Store encrypted files locally | ❌ NO |
+| Store encrypted files on IPFS | ❌ NO |
 | Download your files | ❌ NO |
 | Create encrypted notes | ❌ NO |
-| Prove file ownership on blockchain | ✅ YES |
-| Get immutable timestamp proof | ✅ YES |
+| **Cross-device sync** | ✅ YES (recommended) |
+| **Prove ownership on blockchain** | ✅ YES |
 
-### Why Use MetaMask?
+### Why Connect Wallet?
 
-If you connect MetaMask, every file you upload gets recorded on the blockchain with:
-- Your wallet address
-- The file's encrypted hash
-- A timestamp
+Connecting MetaMask enables:
 
-This creates **undeniable proof** that you owned this file at a specific time.
+1. **Cross-Device Access**
+   - Your file list is stored on blockchain
+   - Access from any device with wallet + password/phrase
+   - No need to manually transfer files
 
-**Use Cases:**
-- Patent filings
-- Copyright proof
-- Legal disputes
-- Audit trails
-- Intellectual property protection
+2. **Ownership Proof**
+   - Every file hash recorded on-chain
+   - Immutable timestamp proof
+   - Legal/copyright applications
 
-### How to Connect MetaMask
-
-#### 1. Install MetaMask Extension
+### What Gets Stored on Blockchain?
 
 ```
-1. Go to https://metamask.io/
-2. Click "Download"
-3. Install for your browser (Chrome, Firefox, Edge, Brave)
-4. Create a new wallet or import existing one
-5. Save your seed phrase securely!
+On Blockchain (PUBLIC):
+├── Your wallet address
+├── Manifest CID (encrypted file list pointer)
+└── Timestamp
+
+NOT on Blockchain (PRIVATE):
+├── Your file content
+├── Your password
+├── Your encryption key
+├── Decrypted manifest
+└── Any readable data
 ```
 
-#### 2. Get Test ETH (Sepolia Testnet)
+---
 
-OwnNet Vault uses Sepolia testnet (free ETH for testing).
+## Cross-Device Sync
 
-```
-1. Open MetaMask
-2. Click network dropdown
-3. Select "Sepolia" (or add it if not visible)
-4. Go to https://sepoliafaucet.com/
-5. Enter your wallet address
-6. Receive free test ETH
-```
-
-#### 3. Deploy Smart Contract (One-time setup)
-
-```bash
-# Using Remix IDE (easiest method)
-
-1. Go to https://remix.ethereum.org/
-2. Create new file: DataVault.sol
-3. Copy content from contracts/DataVault.sol
-4. Compile with Solidity 0.8.19+
-5. Deploy to Sepolia via MetaMask
-6. Copy contract address
-7. Update CONTRACT_ADDRESS in src/utils/web3.js
-```
-
-#### 4. Connect in App
+### How It Works
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  🔐 OwnNet Vault                    [🌙] [🦊 Connect]│
-│                                          ↑         │
-│                                   Click this button │
-└─────────────────────────────────────────────────────┘
-
-↓ MetaMask popup appears
-
-┌─────────────────────────────────────────────────────┐
-│  MetaMask                                           │
-│                                                     │
-│  Connect to OwnNet Vault?                           │
-│                                                     │
-│  This site is requesting access to:                │
-│  • View your wallet address                        │
-│  • Request transaction signatures                 │
-│                                                     │
-│  [Cancel]  [Connect]                               │
-└─────────────────────────────────────────────────────┘
-
-↓ After connecting
-
-┌─────────────────────────────────────────────────────┐
-│  🔐 OwnNet Vault        [🌙] [0x1234...5678] 1.5 ETH│
-│                              ↑ Connected!           │
-└─────────────────────────────────────────────────────┘
+DEVICE1 (Home Computer):
+┌─────────────────────────────────────────────────────────┐
+│ 1. Create vault with password + recovery phrase         │
+│ 2. Upload file → Encrypted → IPFS                        │
+│ 3. Manifest auto-updated with file metadata             │
+│ 4. Encrypted manifest uploaded to IPFS                   │
+│ 5. Manifest CID stored on blockchain (if wallet linked) │
+│ 6. Vault ID stored in localStorage                       │
+└─────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────┬────────────────────┬────────────────────┐
+│   IPFS (Pinata)     │   Blockchain      │   localStorage    │
+│   - File data       │   - Manifest CID  │   - Vault ID      │
+│   - Manifest data   │   - Address link   │   - Password hash │
+└────────────────────┴────────────────────┴────────────────────┘
+                            │
+                            ▼
+DEVICE 2 (Work Computer):
+┌─────────────────────────────────────────────────────────┐
+│ Method 1: Recovery Phrase Only                          │
+│ ────────────────────────────                             │
+│ 1. Enter recovery phrase                                │
+│ 2. Download manifest from localStorage backup           │
+│ 3. Decrypt manifest                                      │
+│ 4. Download files from IPFS using manifest              │
+│ 5. Decrypt files with password derived from phrase      │
+│                                                          │
+│ Method 2: Wallet + Recovery Phrase (Recommended)        │
+│ ──────────────────────────────────────────               │
+│ 1. Connect MetaMask wallet                              │
+│ 2. Smart contract returns your manifest CID             │
+│ 3. Download manifest from IPFS                          │
+│ 4. Enter recovery phrase to decrypt manifest           │
+│ 5. Download files from IPFS using manifest              │
+│ 6. Decrypt files with password                          │
+└─────────────────────────────────────────────────────────┘
 ```
-
-### What Gets Recorded on Blockchain?
-
-When you upload a file with MetaMask connected:
-
-```javascript
-// Smart Contract Function (DataVault.sol)
-function addFile(string memory _ipfsHash) external {
-    userFiles[msg.sender].push(FileRecord({
-        ipfsHash: _ipfsHash,    // Your file's encrypted hash
-        timestamp: block.timestamp, // When you uploaded
-        exists: true
-    }));
-}
-```
-
-**On Blockchain:**
-```
-┌──────────────────────────────────────────────────────┐
-│ Transaction Record                                    │
-│                                                       │
-│ • From: 0xYourWalletAddress                          │
-│ • File Hash: QmX4F... (encrypted file identifier)    │
-│ • Timestamp: 1673849234 (Unix time)                  │
-│ • Block Number: 12345678                             │
-│                                                       │
-│ This is PERMANENT and PUBLIC (but only the hash,    │
-│ not your actual file content)                        │
-└──────────────────────────────────────────────────────┘
-```
-
-### Security Note for MetaMask
-
-⚠️ **What IS public:**
-- Your wallet address
-- The encrypted file hash
-- The timestamp
-
-⚠️ **What stays PRIVATE:**
-- Your file content (encrypted)
-- Your encryption password
-- The actual file data
 
 ---
 
 ## Security Information
 
-### How Security Works
+### Security Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    SECURITY LAYERS                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Layer 1: Password                                          │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ • User provides password                              │   │
-│  │ • Password NEVER stored (only hash for verification)│   │
-│  │ • Password NEVER sent to server                      │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                          ↓                                  │
-│  Layer 2: Key Derivation (PBKDF2)                          │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ • Password → PBKDF2 (100,000 iterations)            │   │
-│  │ • Salt added (ownnet-vault-salt)                    │   │
-│  │ • Output: AES-256 encryption key                     │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                          ↓                                  │
-│  Layer 3: Encryption (AES-256-GCM)                         │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ • Random IV (initialization vector) generated      │   │
-│  │ • File content encrypted with AES-256-GCM          │   │
-│  │ • IV + Encrypted data combined                      │   │
-│  │ • Result stored in localStorage                     │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    SECURITY LAYERS                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Layer 1: Password                                               │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │ • User provides password                                  │  │
+│  │ • SHA-256 hash stored for verification                   │  │
+│  │ • Password NEVER sent anywhere                           │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                          ↓                                      │
+│  Layer 2: Key Derivation (PBKDF2)                              │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │ • Password → PBKDF2 (150,000 iterations)                 │  │
+│  │ • Salt: 'ownnet-vault-salt-v2'                           │  │
+│  │ • Output: AES-256 encryption key                          │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                          ↓                                      │
+│  Layer 3: Encryption (AES-256-GCM)                             │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │ • Random IV (initialization vector) generated            │  │
+│  │ • File content encrypted with AES-256-GCM                │  │
+│  │ • IV + Encrypted data combined                            │  │
+│  │ • Upload to IPFS                                          │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                          ↓                                      │
+│  Layer 4: Manifest Encryption                                  │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │ • File metadata stored in encrypted manifest             │  │
+│  │ • Manifest encrypted with same key                       │  │
+│  │ • Manifest CID on blockchain (with wallet)               │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Technical Details
 
 | Component | Algorithm | Details |
 |-----------|-----------|---------|
-| Key Derivation | PBKDF2-SHA256 |100,000 iterations with salt |
+| Password Hash | SHA-256 | One-way hash for verification |
+| Key Derivation | PBKDF2-SHA256 | 150,000 iterations with salt |
 | Encryption | AES-256-GCM | Authenticated encryption |
 | IV Size | 96 bits | Random for each file |
 | Key Size | 256 bits | Derived from password |
-
-### Password Storage
-
-```
-⚠️ IMPORTANT SECURITY NOTES:
-
-┌─────────────────────────────────────────────────────────────┐
-│ What's stored: base64(password)                            │
-│ Why: Only for verification that you know the password     │
-│ Security: LOW - base64 is NOT encryption                  │
-│                                                             │
-│ For production use:                                        │
-│ • Should use proper password hashing (bcrypt, argon2)    │
-│ • Or use key derivation directly without storing          │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Data Storage
-
-```
-Where your files are stored:
-
-┌─────────────────────────────────────────────────────────────┐
-│ localStorage (Browser Storage)                              │
-│                                                             │
-│ • Key: "ownnet-vault-password"                             │
-│   Value: base64 encoded password (for verification)        │
-│                                                             │
-│ • Key: "ownnet-vault-files"                                │
-│   Value: JSON array of file metadata                       │
-│                                                             │
-│ • Key: "file-{timestamp}"                                   │
-│   Value: Encrypted file data (base64)                      │
-│                                                             │
-│ • Key: "vault-{timestamp}"                                  │
-│   Value: Encrypted notes (base64)                          │
-└─────────────────────────────────────────────────────────────┘
-
-⚠️ Clearing browser data = ALL FILES LOST
-⚠️ Different browser = FILES NOT ACCESSIBLE
-```
-
-### What We Can and Cannot Do
-
-| Can Do | Cannot Do |
-|--------|-----------|
-| Store your encrypted files | Read your files |
-| Verify you know the password | Recover your password |
-| Provide blockchain timestamp | Decrypt your data |
-| Save data to browser | Access your data on different devices |
 
 ---
 
@@ -529,67 +519,56 @@ Where your files are stored:
 Possible causes:
 1. Caps Lock is on
 2. Password has special characters you forgot
-3. Browser data was cleared
-4. Using different browser
+3. Using different device (try recovery phrase)
 
-Solution:
+Solutions:
 • Try again carefully
-• If data was cleared, you'll need to create a new vault
+• Use recovery phrase instead
+• If truly lost, create new vault (deletes all data)
 ```
 
-#### "Failed to encrypt and upload file"
+#### Files not syncing across devices
 
 ```
-Possible causes:
-1. File is too large (browser storage limit)
-2. Browser storage is full
-3. JavaScript error
+Check:
+1. Is MetaMask connected on both devices?
+2. Are you using the same wallet address?
+3. Is Pinata configured correctly?
 
 Solution:
-• Try a smaller file
-• Clear old files to free space
-• Check browser console for errors (F12 → Console)
+• Connect wallet on both devices
+• Use recovery phrase to unlock on new device
+• Files should sync automatically
 ```
 
-#### "Please install MetaMask"
-
-```
-You see this when trying to use blockchain features without MetaMask.
-
-Solutions:
-1. Install MetaMask extension: https://metamask.io/
-2. Or skip blockchain features (not required for basic usage)
-```
-
-#### Files disappeared after browser update
+#### "Failed to upload to IPFS"
 
 ```
 Possible causes:
-1. Browser cleared localStorage
-2. You're in incognito/private mode
-3. Different browser profile
+1. Pinata JWT not configured
+2. Pinata API rate limit reached
+3. File too large
 
 Solutions:
-• Regular backups recommended
-• Export important files periodically
-• Consider IPFS storage for persistence
+• Check . env file has VITE_PINATA_JWT
+• Check Pinata dashboard for usage
+• Try smaller file
 ```
 
-#### "Create New Vault" warning
+#### "Manifest sync failed"
 
 ```
-⚠️ WARNING:
+This means your file list couldn't be synced to blockchain.
 
-Clicking "Create New Vault" when you already have data:
+Check:
+1. Is wallet connected?
+2. Do you have ETH for gas?
+3. Are you on Sepolia testnet?
 
-• ALL existing files will be DELETED
-• Password will be reset
-• This action is IRREVERSIBLE
-
-Only use this if:
-• You forgot your password
-• You want to start fresh
-• You've backed up your files elsewhere
+Solutions:
+• Files still work locally
+• Manifest synced when wallet available
+• Get test ETH from faucet
 ```
 
 ---
@@ -598,144 +577,60 @@ Only use this if:
 
 ### General Questions
 
-**Q: Is my data saved on a server somewhere?**
+**Q: Where are my files stored?**
 
-A: **No.** All data is stored in your browser's localStorage. Nothing is sent to any server (except optional blockchain transactions).
+A: Your files are stored on **IPFS** (InterPlanetary File System) via Pinata. This is decentralized storage, meaning they're not on any single server and can be accessed from anywhere.
 
 **Q: Can you see my files?**
 
-A: **No.** Files are encrypted in your browser before storage. Without your password, the data is unreadable.
+A: **No.** Files are encrypted in your browser before upload. Without your password, the data is unreadable gibberish even if someone accesses IPFS.
 
 **Q: What happens if I forget my password?**
 
-A: **Your data is permanently lost.** There is no password recovery mechanism. This is a security feature - even we cannot access your data.
+A: Use your **12-word recovery phrase** to regain access. If you lose BOTH your password AND recovery phrase, your data is permanently lost.
 
 **Q: Can I use this on multiple devices?**
 
-A: **No.** Each browser/device has its own separate storage. Files are not synced across devices.
+A: **Yes!** Connect your MetaMask wallet on each device to sync your file list automatically. Or use your recovery phrase to access from any device.
 
-**Q: Is it safe for sensitive data?**
+### IPFS Questions
 
-A: This is a **demo/educational project**. While the encryption is strong, the implementation is not audited for production use. For truly sensitive data, use established tools like Veracrypt, 1Password, or Bitwarden.
+**Q: What is IPFS?**
+
+A: IPFS (InterPlanetary File System) is a decentralized storage network. Files are stored across many computers worldwide, making them censorship-resistant and highly available.
+
+**Q: What happens if Pinata shuts down?**
+
+A: Your files remain on IPFS. You could use any IPFS gateway to access them using the CID (content identifier). The blockchain record of your manifest CID ensures you can always find it.
+
+**Q: Is there a storage limit?**
+
+A: Pinata free tier offers 1GB. Upgraded plans offer more storage.
 
 ### Blockchain Questions
 
 **Q: Do I need MetaMask?**
 
-A: **No.** MetaMask is completely optional. The basic vault features work without it.
+A: **No.** Basic file storage works without MetaMask. However, connecting MetaMask enables cross-device sync.
 
-**Q: What's the difference between local and blockchain storage?**
+**Q: What gets recorded on blockchain?**
 
-A:
-- **Local:** Files stored in browser, accessible only from that browser
-- **Blockchain:** File hash recorded on Ethereum, proves you owned the file at a specific time
+A: Only your **manifest CID** (a hash pointing to your encrypted file list). The actual content of your files and your password are NEVER on blockchain.
 
-**Q: Does blockchain store my files?**
+**Q: Does it cost money?**
 
-A: **No.** Only the encrypted file hash is stored on blockchain. Your actual files remain in your browser.
-
-**Q: Are blockchain transactions free?**
-
-A: **No.** Each blockchain transaction costs ETH (gas fees). For Sepolia testnet, you can get free test ETH from faucets.
-
-**Q: Can anyone see my files on blockchain?**
-
-A: They can see:
-- Your wallet address
-- The file hash
-- The timestamp
-
-They CANNOT see:
-- Your file content
-- Your encryption password
-- Any readable data
-
-### Technical Questions
-
-**Q: What encryption algorithm is used?**
-
-A: AES-256-GCM with PBKDF2 key derivation (100,000 iterations).
-
-**Q: Where is the encryption key stored?**
-
-A: It isn't stored anywhere. The key is derived from your password each time you unlock the vault.
-
-**Q: CanI export my encrypted files?**
-
-A: Not currently implemented. You would need to manually export from localStorage.
-
-**Q: Is there a file size limit?**
-
-A: Limited by browser localStorage (typically 5-10 MB total). Large files are not recommended.
-
----
-
-## Development
-
-### Running Locally
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Run tests
-npm run test
-```
-
-### Project Structure
-
-```
-ownnet-vault/
-├── contracts/
-│   └── DataVault.sol      # Smart contract
-├── src/
-│   ├── components/        # React components
-│   │   ├── FileList.jsx
-│   │   ├── FileUpload.jsx
-│   │   ├── NoteEditor.jsx
-│   │   ├── SetupModal.jsx
-│   │   ├── StatusBar.jsx
-│   │   ├── VaultUnlockModal.jsx
-│   │   └── WalletConnect.jsx
-│   ├── hooks/
-│   │   └── useTheme.js    # Theme toggle hook
-│   ├── utils/
-│   │   ├── encryption.js  # Web Crypto API functions
-│   │   ├── ipfs.js        # Storage functions
-│   │   └── web3.js        # Blockchain functions
-│   ├── App.jsx            # Main application
-│   ├── main.jsx           # Entry point
-│   └── index.css          # Tailwind styles
-├── public/
-│   └── vault.svg          # App icon
-├── tests/                 # Unit tests
-├── package.json
-├── vite.config.js
-└── README.md
-```
+A: On Sepolia testnet, you can get free test ETH. On mainnet, each manifest update costs gas fees.
 
 ---
 
 ## Support
 
-Ifyou encounter any issues:
+If you encounter any issues:
 
 1. **Check browser console** (F12 → Console) for error messages
-2. **Try clearing browser cache** and localStorage
-3. **Ensure you're using a modern browser** (Chrome, Firefox, Edge, Safari)
-4. **For blockchain issues:** Verify MetaMask is installed and unlocked
-
----
-
-## License
-
-MIT License - See LICENSE file for details.
+2. **Ensure Pinata JWT is configured** in `.env`
+3. **Try recovery phrase** if password doesn't work
+4. **Connect wallet** for cross-device sync issues
 
 ---
 
