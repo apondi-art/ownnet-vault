@@ -1,7 +1,32 @@
-const CONTRACT_ADDRESS = 'YOUR_CONTRACT_ADDRESS';
+const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || 'YOUR_CONTRACT_ADDRESS';
+
+console.log('Contract Address:', CONTRACT_ADDRESS);
+console.log('Contract Configured:', CONTRACT_ADDRESS !== 'YOUR_CONTRACT_ADDRESS');
+
 const CONTRACT_ABI = [
   {
-    "inputs": [],
+    "inputs": [{"name": "_manifestCID", "type": "string"}],
+    "name": "updateManifest",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "_user", "type": "address"}],
+    "name": "getManifestCID",
+    "outputs": [{"name": "manifestCID", "type": "string"}, {"name": "lastUpdated", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "_user", "type": "address"}],
+    "name": "hasVault",
+    "outputs": [{"name": "", "type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "_ipfsHash", "type": "string"}],
     "name": "addFile",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -30,9 +55,25 @@ const CONTRACT_ABI = [
   }
 ];
 
+const SEPOLIA_RPC = 'https://ethereum-sepolia.publicnode.com';
 let provider = null;
 let signer = null;
 let contract = null;
+let readOnlyContract = null;
+
+async function getReadOnlyProvider() {
+  const { ethers } = await import('ethers');
+  return new ethers.JsonRpcProvider(SEPOLIA_RPC);
+}
+
+async function getReadOnlyContract() {
+  if (!readOnlyContract) {
+    const { ethers } = await import('ethers');
+    const rpcProvider = await getReadOnlyProvider();
+    readOnlyContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, rpcProvider);
+  }
+  return readOnlyContract;
+}
 
 export async function connectWallet() {
   if (typeof window === 'undefined' || !window.ethereum) {
@@ -74,6 +115,60 @@ export async function getContract() {
   return contract;
 }
 
+export async function updateManifestOnChain(manifestCID) {
+  try {
+    const contract = await getContract();
+    if (!contract) {
+      throw new Error('Contract not initialized');
+    }
+    
+    const tx = await contract.updateManifest(manifestCID);
+    const receipt = await tx.wait();
+    
+    return receipt.hash;
+  } catch (error) {
+    console.error('Update manifest error:', error);
+    throw error;
+  }
+}
+
+export async function getManifestFromChain(address) {
+  try {
+    const contract = signer ? await getContract() : await getReadOnlyContract();
+    if (!contract) {
+      return null;
+    }
+    
+    const [manifestCID, lastUpdated] = await contract.getManifestCID(address);
+    
+    if (!manifestCID || manifestCID === '') {
+      return null;
+    }
+    
+    return {
+      manifestCID,
+      lastUpdated: Number(lastUpdated)
+    };
+  } catch (error) {
+    console.error('Get manifest error:', error);
+    return null;
+  }
+}
+
+export async function hasVaultOnChain(address) {
+  try {
+    const contract = signer ? await getContract() : await getReadOnlyContract();
+    if (!contract) {
+      return false;
+    }
+    
+    return await contract.hasVault(address);
+  } catch (error) {
+    console.error('Has vault error:', error);
+    return false;
+  }
+}
+
 export async function registerFileHash(ipfsHash) {
   try {
     const contract = await getContract();
@@ -91,14 +186,19 @@ export async function registerFileHash(ipfsHash) {
   }
 }
 
-export async function getUserFiles() {
+export async function getUserFiles(address) {
   try {
-    const contract = await getContract();
+    const contract = signer ? await getContract() : await getReadOnlyContract();
     if (!contract) {
       return [];
     }
     
-    const files = await contract.getUserFiles(await signer.getAddress());
+    const targetAddress = address || (signer? await signer.getAddress() : null);
+    if (!targetAddress) {
+      return [];
+    }
+    
+    const files = await contract.getUserFiles(targetAddress);
     return files;
   } catch (error) {
     console.error('Get files error:', error);
@@ -139,4 +239,8 @@ export function formatAddress(address) {
 
 export function toBytes32(str) {
   return str;
+}
+
+export function isContractConfigured() {
+  return CONTRACT_ADDRESS !== 'YOUR_CONTRACT_ADDRESS';
 }
