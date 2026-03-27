@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { generateRecoveryPhrase, validateRecoveryPhrase, getRandomVerificationWords } from '../utils/recovery';
+import { generateValidMnemonic } from '../utils/wallet';
+import { getRandomVerificationWords } from '../utils/recovery';
 
 export default function SetupModal({ onComplete }) {
   const [step, setStep] = useState(1);
@@ -56,8 +57,7 @@ export default function SetupModal({ onComplete }) {
     
     console.log('Generating recovery phrase...');
     try {
-      // Generate recovery phrase and go to step 2
-      const phrase = generateRecoveryPhrase();
+      const phrase = generateValidMnemonic();
       console.log('Recovery phrase generated:', phrase.substring(0, 20) + '...');
       setRecoveryPhrase(phrase);
       const words = getRandomVerificationWords(phrase);

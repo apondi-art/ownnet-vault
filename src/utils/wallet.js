@@ -12,6 +12,11 @@ export async function generateWallet() {
   };
 }
 
+export function generateValidMnemonic() {
+  const wallet = ethers.Wallet.createRandom();
+  return wallet.mnemonic.phrase;
+}
+
 export async function encryptWallet(privateKey, password) {
   const { encryptText } = await import('./encryption');
   return await encryptText(privateKey, password);
