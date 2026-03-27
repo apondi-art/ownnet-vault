@@ -167,10 +167,16 @@ const [loading, setLoading] = useState(true);
     }
     
     try {
-      const wallet = await createAndStoreWallet(masterPassword);
+      let wallet;
+      if (recoveryPhrase) {
+        wallet = await restoreWalletFromMnemonic(recoveryPhrase, masterPassword);
+        console.log('Wallet restored from recovery phrase:', formatAddress(wallet.address));
+      } else {
+        wallet = await createAndStoreWallet(masterPassword);
+        console.log('Internal wallet created:', formatAddress(wallet.address));
+      }
       setInternalWallet(wallet);
       setWalletAddress(wallet.address);
-      console.log('Internal wallet created:', formatAddress(wallet.address));
     } catch (e) {
       console.error('Failed to create internal wallet:', e);
     }
