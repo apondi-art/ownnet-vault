@@ -1,25 +1,107 @@
-# OwnNet Vault🔐
+# OwnNet Vault 🔐
 
+> **🏆 ETHOnline 2024 - Infrastructure & Digital Rights Track**
+> 
 > A privacy-first data vault with client-side encryption and blockchain-verified cross-device sync
 
-## Overview
+---
 
-[Problem Statement](#problem-statement)
-- [Solution](#solution)
-- [Key Features](#key-features)
-- [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Running Locally](#running-locally)
-- [Smart Contract Deployment](#smart-contract-deployment)
-- [Testing](#testing)
-- [Project Structure](#project-structure)
-- [How It Works](#how-it-works)
-- [Security](#security)
-- [Future Improvements](#future-improvements)
-- [Contributing](#contributing)
-- [License](#license)
+## 🎯 Hackathon Submission
+
+### Track Alignment: Infrastructure & Digital Rights
+
+| Criteria | How We Meet It |
+|----------|----------------|
+| **Decentralised Infrastructure** | ✅ IPFS storage (no central server), blockchain sync |
+| **Data Ownership** | ✅ User owns all keys, client-side encryption |
+| **Privacy-Preserving** | ✅ AES-256-GCM encryption before data leaves device |
+| **Censorship Resistance** | ✅ Files stored on IPFS, accessible anywhere |
+| **No Central Server** | ✅ All encryption/decryption in browser |
+
+### Matches Example Project Ideas
+
+| Example from Brief | Our Implementation |
+|-------------------|-------------------|
+| *"Password managers with social recovery and no central server"* | ✅ Recovery phrase for vault access, no server |
+| *"File storage apps with client-side encryption"* | ✅ AES-256-GCM encryption before upload |
+| *"Personal data vaults with granular consent"* | ✅ User controls all data, truly owns keys |
+
+---
+
+### 🚀 Live Demo
+
+**Deployed:** [Your Vercel URL]
+
+**Demo Video:** [Link to 3-min video]
+
+---
+
+## ⚡ Key Innovations
+
+1. **Zero-Knowledge Architecture** - Server never sees user data or keys
+2. **No Crypto Knowledge Required** - Works for non-Web3 users seamlessly
+3. **Auto-Generated Wallet** - No MetaMask setup needed
+4. **Cross-Device Sync** - Via blockchain without central server
+5. **Military-Grade Encryption** - AES-256-GCM in browser
+
+---
+
+## 📊 Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         USER'S BROWSER                           │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │   Password   │───▶│   PBKDF2     │───▶│  AES-256     │      │
+│  │   (User)     │    │  150K iter   │    │  Encrypt Key │      │
+│  └──────────────┘    └──────────────┘    └──────────────┘      │
+│                                                   │              │
+│                                                   ▼              │
+│                              ┌──────────────────────────┐        │
+│                              │   Encrypted Files        │        │
+│                              │   + Encrypted Manifest   │        │
+│                              └──────────────────────────┘        │
+└───────────────────────────────────────────┬─────────────────────┘
+                                            │
+                        ┌───────────────────┴───────────────────┐
+                        │                                       │
+                        ▼                                       ▼
+               ┌─────────────────┐                    ┌──────────────────┐
+               │    IPFS/Pinata  │                    │   Blockchain     │
+               │   (Decentralized│                    │   (Ethereum)     │
+               │    Storage)      │                    │                  │
+               │                  │                    │ Manifest CID     │
+               │ ✓ No central     │                    │ stored on-chain  │
+               │   server        │                    │                  │
+               │ ✓ Censorship    │                    │ ✓ Cross-device   │
+               │   resistant     │                    │   sync          │
+               │ ✓ Permanent     │                    │ ✓ User owns     │
+               └─────────────────┘                    └──────────────────┘
+```
+
+### Privacy Flow
+
+```
+Upload:  File → Encrypt (AES-256) → IPFS → Encrypt Manifest → Blockchain
+Download: Blockchain → IPFS → Decrypt Manifest → Show Files
+Recovery: 12-word phrase → Derive Key → Access anywhere
+```
+
+---
+
+## 🔐 Security
+
+| Attack Vector | Protection |
+|---------------|------------|
+| Server breach | ✅ Server never sees data (encrypted in browser) |
+| Password leak | ✅ Only SHA-256 hash stored, keys derived locally |
+| Interception | ✅ TLS + client-side encryption before upload |
+| Key theft | ✅ Keys exist only in browser memory |
+| Social engineering | ✅ No central authority to trick |
+
+---
+
+## Overview
 
 ## Problem Statement
 
