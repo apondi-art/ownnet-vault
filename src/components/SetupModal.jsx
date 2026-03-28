@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { generateValidMnemonic } from '../utils/wallet';
 import { getRandomVerificationWords } from '../utils/recovery';
 
-export default function SetupModal({ onComplete }) {
+export default function SetupModal({ onComplete, onUseRecovery }) {
   const [step, setStep] = useState(1);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -217,6 +217,21 @@ export default function SetupModal({ onComplete }) {
               >
                 Continue
               </button>
+              
+              {onUseRecovery && (
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Already have a vault?{' '}
+                    <button
+                      type="button"
+                      onClick={onUseRecovery}
+                      className="text-main hover:underline font-medium"
+                    >
+                      Use recovery phrase
+                    </button>
+                  </p>
+                </div>
+              )}
             </form>
           </>
         )}
