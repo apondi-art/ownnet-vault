@@ -39,7 +39,15 @@ import {
   updateManifestOnChain,
   getManifestFromChain,
   hasVaultOnChain,
-  isContractConfigured
+  isContractConfigured,
+  initInternalWallet,
+  getInternalWalletAddress,
+  getInternalWalletBalance,
+  hasEnoughGas,
+  updateManifestWithInternalWallet,
+  registerFileHashWithInternalWallet,
+  getManifestFromInternalWallet,
+  hasVaultWithInternalWallet
 } from './utils/web3';
 import {
   createManifest,
@@ -83,6 +91,9 @@ function App() {
 const [loading, setLoading] = useState(true);
   const [ipfsReady, setIpfsReady] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [blockchainReady, setBlockchainReady] = useState(false);
+  const [needsGas, setNeedsGas] = useState(false);
+  const [syncError, setSyncError] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [errorTitle, setErrorTitle] = useState('Error');
   const [confirmMessage, setConfirmMessage] = useState(null);
@@ -91,6 +102,81 @@ const [loading, setLoading] = useState(true);
   const [pendingRecoveryPhrase, setPendingRecoveryPhrase] = useState(null);
   
   const setupInProgress = useRef(false);
+  
+  const syncManifestToIPFS = async (manifestToSync, passwordOverride) => {
+    const currentPassword = passwordOverride || password;
+    if (!currentPassword) {
+      console.error('No password available for manifest sync');
+      return null;
+    }
+    
+    try {
+      const encryptedManifest = await encryptManifest(manifestToSync, currentPassword);
+      const manifestBlob = new TextEncoder().encode(encryptedManifest);
+      const result = await uploadToIPFS(manifestBlob);
+      
+      if (!result || !result.hash) {
+        throw new Error('Failed to upload manifest to IPFS');
+      }
+      
+      const manifestCID = result.hash;
+      localStorage.setItem(STORAGE_KEY_MANIFEST_CID, manifestCID);
+      setManifestCID(manifestCID);
+      
+      if (isContractConfigured() && internalWallet) {
+        try {
+          const hasGas = await hasEnoughGas();
+          if (!hasGas) {
+            setNeedsGas(true);
+            console.warn('Insufficient ETH for blockchain sync. Need at least 0.001 ETH.');
+            return manifestCID;
+          }
+          
+          await updateManifestWithInternalWallet(manifestCID);
+          console.log('Manifest synced to blockchain:', manifestCID);
+          setSyncError(null);
+        } catch (blockchainError) {
+          console.error('Failed to sync to blockchain:', blockchainError);
+          
+          if (blockchainError.message?.includes('insufficient funds') || 
+              blockchainError.message?.includes('gas')) {
+            setNeedsGas(true);
+            setSyncError('NeedSepoliaETH for blockchain sync. Get free ETH from faucet.');
+          } else {
+            setSyncError(blockchainError.message);
+          }
+        }
+      }
+      
+      return manifestCID;
+    } catch (error) {
+      console.error('Failed to sync manifest:', error);
+      throw error;
+    }
+  };
+  
+  const loadManifestFromIPFS = async (cid, passwordOverride) => {
+    const currentPassword = passwordOverride || password;
+    if (!currentPassword) {
+      console.error('No password available for manifest decryption');
+      return null;
+    }
+    
+    try {
+      const encryptedManifest = await downloadFromIPFS(cid);
+      if (!encryptedManifest) {
+        throw new Error('Failed to download manifest from IPFS');
+      }
+      
+      const encryptedText = String.fromCharCode(...encryptedManifest);
+      const manifestData = await decryptManifest(encryptedText, currentPassword);
+      
+      return manifestData;
+    } catch (error) {
+      console.error('Failed to load manifest from IPFS:', error);
+      return null;
+    }
+  };
   
   useEffect(() => {
     const storedPasswordHash = localStorage.getItem(STORAGE_KEY_PASSWORD_HASH);
@@ -177,6 +263,20 @@ const [loading, setLoading] = useState(true);
       }
       setInternalWallet(wallet);
       setWalletAddress(wallet.address);
+      
+      if (isContractConfigured() && wallet.privateKey) {
+        try {
+          await initInternalWallet(wallet.privateKey);
+          const balance = await getInternalWalletBalance();
+          setWalletBalance(balance);
+          setBlockchainReady(true);
+          setNeedsGas(!balance || parseFloat(balance) < 0.001);
+          console.log('Blockchain ready. Balance:', balance, 'ETH');
+        } catch (e) {
+          console.warn('Could not initialize blockchain:', e.message);
+          setBlockchainReady(false);
+        }
+      }
     } catch (e) {
       console.error('Failed to create internal wallet:', e);
     }
@@ -250,6 +350,18 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
         setWalletAddress(wallet.address);
         console.log('Wallet restored from recovery phrase:', formatAddress(wallet.address));
         
+        if (isContractConfigured() && wallet.privateKey) {
+          try {
+            await initInternalWallet(wallet.privateKey);
+            const balance = await getInternalWalletBalance();
+            setWalletBalance(balance);
+            setBlockchainReady(true);
+            setNeedsGas(!balance || parseFloat(balance) < 0.001);
+          } catch (e) {
+            console.warn('Could not initialize blockchain:', e.message);
+          }
+        }
+        
         if (!storedRecovery) {
           const recoveryHash = await hashPassword(cleanPhrase);
           localStorage.setItem(STORAGE_KEY_RECOVERY, recoveryHash);
@@ -281,6 +393,18 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
             setInternalWallet(wallet);
             setWalletAddress(wallet.address);
             console.log('Wallet restored from encrypted key:', formatAddress(wallet.address));
+            
+            if (isContractConfigured() && wallet.privateKey) {
+              try {
+                await initInternalWallet(wallet.privateKey);
+                const balance = await getInternalWalletBalance();
+                setWalletBalance(balance);
+                setBlockchainReady(true);
+                setNeedsGas(!balance || parseFloat(balance) < 0.001);
+              } catch (e) {
+                console.warn('Could not initialize blockchain:', e.message);
+              }
+            }
           }
         } catch (e) {
           console.error('Failed to restore internal wallet:', e);
@@ -300,7 +424,7 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
       
       if (walletAddr && isContractConfigured()) {
         try {
-          const onChainManifest = await getManifestFromChain(walletAddr);
+          const onChainManifest = await getManifestFromInternalWallet(walletAddr);
           if (onChainManifest && onChainManifest.manifestCID) {
             const manifestData = await loadManifestFromIPFS(onChainManifest.manifestCID, unlockPassword);
             if (manifestData && manifestData.files) {
@@ -412,12 +536,22 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
         storageType: storageResult.local ? 'localStorage' : 'IPFS'
       };
       
-      if (walletAddress && !storageResult.local && isContractConfigured()) {
+      if (!storageResult.local && isContractConfigured() && internalWallet) {
         try {
-          await registerFileHash(storageResult.hash);
-          newFile.onChain = true;
+          const hasGas = await hasEnoughGas();
+          if (hasGas) {
+            await registerFileHashWithInternalWallet(storageResult.hash);
+            newFile.onChain = true;
+            console.log('File registered on blockchain:', storageResult.hash);
+          } else {
+            setNeedsGas(true);
+            console.warn('Skipping blockchain registration - insufficient ETH');
+          }
         } catch (e) {
-          console.error('Failed to register on blockchain:', e);
+          console.error('Failed to register file on blockchain:', e);
+          if (e.message?.includes('insufficient funds') || e.message?.includes('gas')) {
+            setNeedsGas(true);
+          }
         }
       }
       
@@ -594,6 +728,12 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
   const handleCancelUnlock = () => {
     setShowUnlockModal(false);
   };
+  
+  const handleUseRecoveryFromSetup = () => {
+    setIsSetup(false);
+    setIsLocked(true);
+    setShowUnlockModal(true);
+  };
 
   if (loading) {
     return (
@@ -659,7 +799,7 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
               </p>
             </div>
             
-            <SetupModal onComplete={handleSetupComplete} />
+            <SetupModal onComplete={handleSetupComplete} onUseRecovery={handleUseRecoveryFromSetup} />
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
               <div className="p-5 bg-secondary-background rounded-base border border-border text-center">
@@ -816,9 +956,12 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
             </div>
             
             <StatusBar
-              internalWallet={!!internalWallet || !!walletAddress}
+              internalWallet={internalWallet?.address}
               ipfsConnected={ipfsReady}
               encryptionReady={!!password}
+              walletBalance={walletBalance}
+              needsGas={needsGas}
+              blockchainReady={blockchainReady}
             />
           </>
         )}
