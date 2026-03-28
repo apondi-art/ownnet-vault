@@ -60,6 +60,8 @@ let provider = null;
 let signer = null;
 let contract = null;
 let readOnlyContract = null;
+let internalSigner = null;
+let internalContract = null;
 
 async function getReadOnlyProvider() {
   const { ethers } = await import('ethers');
@@ -73,6 +75,117 @@ async function getReadOnlyContract() {
     readOnlyContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, rpcProvider);
   }
   return readOnlyContract;
+}
+
+export async function initInternalWallet(privateKey) {
+  try {
+    const { ethers } = await import('ethers');
+    const rpcProvider = await getReadOnlyProvider();
+    internalSigner = new ethers.Wallet(privateKey, rpcProvider);
+    internalContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, internalSigner);
+    console.log('Internal wallet initialized for blockchain:', internalSigner.address);
+    return internalSigner.address;
+  } catch (error) {
+    console.error('Failed to initialize internal wallet:', error);
+    throw error;
+  }
+}
+
+export async function getInternalWalletAddress() {
+  return internalSigner ? internalSigner.address : null;
+}
+
+export async function getInternalWalletBalance() {
+  if (!internalSigner) return null;
+  const { ethers } = await import('ethers');
+  try {
+    const balance = await internalSigner.provider.getBalance(internalSigner.address);
+    return ethers.formatEther(balance);
+  } catch (error) {
+    console.error('Failed to get balance:', error);
+    return null;
+  }
+}
+
+export async function hasEnoughGas() {
+  const balance = await getInternalWalletBalance();
+  if (!balance) return false;
+  return parseFloat(balance) >= 0.001;
+}
+
+export async function updateManifestWithInternalWallet(manifestCID) {
+  try {
+    if (!internalContract) {
+      throw new Error('Internal wallet not initialized');
+    }
+    
+    console.log('Updating manifest on blockchain with internal wallet...');
+    const tx = await internalContract.updateManifest(manifestCID);
+    console.log('Transaction sent:', tx.hash);
+    const receipt = await tx.wait();
+    console.log('Transaction confirmed:', receipt.hash);
+    
+    return receipt.hash;
+  } catch (error) {
+    console.error('Update manifest with internal wallet error:', error);
+    throw error;
+  }
+}
+
+export async function registerFileHashWithInternalWallet(ipfsHash) {
+  try {
+    if (!internalContract) {
+      throw new Error('Internal wallet not initialized');
+    }
+    
+    console.log('Registering file on blockchain:', ipfsHash);
+    const tx = await internalContract.addFile(ipfsHash);
+    console.log('Transaction sent:', tx.hash);
+    const receipt = await tx.wait();
+    console.log('Transaction confirmed:', receipt.hash);
+    
+    return receipt.hash;
+  } catch (error) {
+    console.error('Register file with internal wallet error:', error);
+    throw error;
+  }
+}
+
+export async function getManifestFromInternalWallet(address) {
+  try {
+    const contract = internalContract || await getReadOnlyContract();
+    if (!contract) return null;
+    
+    const targetAddress = address || (internalSigner ? internalSigner.address : null);
+    if (!targetAddress) return null;
+    
+    const [manifestCID, lastUpdated] = await contract.getManifestCID(targetAddress);
+    
+    if (!manifestCID || manifestCID === '') return null;
+    
+    return {
+      manifestCID,
+      lastUpdated: Number(lastUpdated)
+    };
+  } catch (error) {
+    console.error('Get manifest error:', error);
+    return null;
+  }
+}
+
+export async function hasVaultWithInternalWallet(address) {
+  try {
+    const contract = internalContract || await getReadOnlyContract();
+    if (!contract) return false;
+    
+    const targetAddress = address || (internalSigner ? internalSigner.address : null);
+    if (!targetAddress) return false;
+    
+    return await contract.hasVault(targetAddress);
+  } catch (error) {
+    console.error('Has vault error:', error);
+    return false;
+  }
 }
 
 export async function connectWallet() {
