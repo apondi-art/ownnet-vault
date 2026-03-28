@@ -22,40 +22,47 @@ export default function NoteEditor({ onSave }) {
 
   return (
     <div>
-      <h3 className="text-lg sm:text-xl font-bold mb-4">📝 Secure Note</h3>
+      <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+        <span className="text-lg">📝</span>
+        Secure Note
+      </h3>
       
-      <input
-        type="text"
-        className="w-full px-4 py-3 bg-background border border-border rounded-base text-foreground focus:outline-none focus:ring-2 focus:ring-main focus:border-transparent mb-3"
-        placeholder="Note title..."
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-      
-      <textarea
-        className="w-full min-h-[150px] sm:min-h-[200px] px-4 py-3 bg-background border border-border rounded-base text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-main focus:border-transparent"
-        placeholder="Write your secret note here... Everything is encrypted locally before saving."
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-      />
-      
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
-        <p className="text-sm text-muted-foreground order-2 sm:order-1">
-          {note.length} characters
-        </p>
+      <div className="space-y-3">
+        <input
+          type="text"
+          className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-main focus:border-transparent transition-all text-sm"
+          placeholder="Note title..."
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
         
-        <button
-          onClick={handleSave}
-          className="w-full sm:w-auto bg-main text-main-foreground px-6 py-3 rounded-base font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 order-1 sm:order-2"
-          disabled={!note.trim() || saving}
-        >
-          {saving ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-4 h-4 border-2 border-main-foreground border-t-transparent rounded-full animate-spin" />
-              Encrypting...
-            </span>
-          ) : '💾 Save Encrypted Note'}
-        </button>
+        <textarea
+          className="w-full min-h-[120px] px-3 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground resize-y focus:outline-none focus:ring-2 focus:ring-main focus:border-transparent transition-all text-sm"
+          placeholder="Write your note... Encrypted before saving."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            {note.length} chars • AES-256
+          </span>
+          
+          <button
+            onClick={handleSave}
+            className="bg-main text-white px-4 py-2 rounded-lg font-medium hover:bg-main-dark transition-all disabled:opacity-50 text-sm"
+            disabled={!note.trim() || saving}
+          >
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </span>
+            ) : (
+              '💾 Save Note'
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

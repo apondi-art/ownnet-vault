@@ -5,9 +5,11 @@ import FileUpload from './components/FileUpload';
 import FileList from './components/FileList';
 import NoteEditor from './components/NoteEditor';
 import WalletConnect from './components/WalletConnect';
-import StatusBar from './components/StatusBar';
 import ErrorModal from './components/ErrorModal';
 import ConfirmModal from './components/ConfirmModal';
+import Dashboard from './components/Dashboard';
+import Navbar from './components/Navbar';
+import HeroSection from './components/HeroSection';
 import { useTheme } from './hooks/useTheme';
 import {
   encryptFile,
@@ -79,6 +81,7 @@ function App() {
   const [isSetup, setIsSetup] = useState(true);
   const [isLocked, setIsLocked] = useState(true);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
   const [password, setPassword] = useState(null);
   const [files, setFiles] = useState([]);
   const [manifest, setManifest] = useState(null);
@@ -100,6 +103,8 @@ const [loading, setLoading] = useState(true);
   const [confirmTitle, setConfirmTitle] = useState('Confirm');
   const [confirmAction, setConfirmAction] = useState(null);
   const [pendingRecoveryPhrase, setPendingRecoveryPhrase] = useState(null);
+  
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   
   const setupInProgress = useRef(false);
   
@@ -739,8 +744,8 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-main border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading Vault...</p>
+          <div className="w-16 h-16 border-4 border-main border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground text-lg">Loading Vault...</p>
         </div>
       </div>
     );
@@ -748,224 +753,132 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8 pb-4 sm:pb-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl sm:text-3xl">🔐</span>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-main">OwnNet Vault</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Privacy-First Data Storage</p>
-              {syncing && <span className="text-xs text-main animate-pulse">Syncing...</span>}
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-            {!isSetup && (
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-base text-sm font-medium ${
-                isLocked 
-                  ? 'bg-error/20 text-error border border-error/30' 
-                  : 'bg-success/20 text-success border border-success/30'
-              }`}>
-                {isLocked ? '🔒 Locked' : '🔓 Unlocked'}
-              </div>
-            )}
-            
-            {internalWallet && !isLocked && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary-background border border-border rounded-base text-xs text-muted-foreground">
-                <span className="w-2 h-2 rounded-full bg-success"></span>
-                <span className="font-mono">{formatAddress(internalWallet.address)}</span>
-                <span className="text-xs opacity-60">(Auto)</span>
-              </div>
-            )}
-            
-            <button
-              onClick={toggleTheme}
-              className="flex items-center justify-center w-10 h-10 rounded-base border border-border bg-secondary-background hover:bg-background transition-colors"
-              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              aria-label="Toggle theme"
-            >
-              {isDark ? '☀️' : '🌙'}
-            </button>
-          </div>
-        </header>
-        
-        {isSetup ? (
-          <div className="max-w-3xl mx-auto">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl sm:text-4xl font-bold mb-3 text-main">Your Data, Your Control</h2>
-              <p className="text-muted-foreground text-base sm:text-lg">
-                A privacy-first vault where your data is encrypted locally before storage.
-                Only you hold the keys to unlock it.
-              </p>
-            </div>
-            
-            <SetupModal onComplete={handleSetupComplete} onUseRecovery={handleUseRecoveryFromSetup} />
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-              <div className="p-5 bg-secondary-background rounded-base border border-border text-center">
-                <div className="text-3xl mb-3">🔐</div>
-                <div className="font-semibold mb-2">Client-Side Encryption</div>
-                <div className="text-sm text-muted-foreground">
-                  All data is encrypted in your browser before leaving your device
-                </div>
-              </div>
-              <div className="p-5 bg-secondary-background rounded-base border border-border text-center">
-                <div className="text-3xl mb-3">🔑</div>
-                <div className="font-semibold mb-2">You Own the Keys</div>
-                <div className="text-sm text-muted-foreground">
-                  Only you can decrypt your data. We never see your password
-                </div>
-              </div>
-              <div className="p-5 bg-secondary-background rounded-base border border-border text-center">
-                <div className="text-3xl mb-3">🌐</div>
-                <div className="font-semibold mb-2">Blockchain Synced</div>
-                <div className="text-sm text-muted-foreground">
-                  Connect wallet to sync your file list across devices
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : isLocked ? (
-          <>
-            {!showUnlockModal ? (
-              <div className="max-w-3xl mx-auto">
-                <div className="text-center mb-8">
-                  <div className="text-6xl mb-6">🔒</div>
-                  <h2 className="text-3xl sm:text-4xl font-bold mb-3 text-main">Vault is Locked</h2>
-                  <p className="text-muted-foreground text-base sm:text-lg">
-                    Your files are encrypted and stored on IPFS. Unlock to access them from any device.
-                  </p>
-                </div>
-                
-                <div className="text-center mb-8">
-                  <button 
-                    onClick={handleShowUnlock}
-                    className="px-8 py-3 bg-main text-main-foreground rounded-base font-semibold hover:opacity-90 transition-opacity"
-                  >
-                    🔓 Unlock Vault
-                  </button>
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    Don't have a vault?{' '}
-                    <button 
-                      onClick={handleReset}
-                      className="text-main hover:underline"
-                    >
-                      Create new vault
-                    </button>
-                  </p>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="p-5 bg-secondary-background rounded-base border border-border text-center">
-                    <div className="text-3xl mb-3">🔐</div>
-                    <div className="font-semibold mb-2">Client-Side Encryption</div>
-                    <div className="text-sm text-muted-foreground">
-                      All data is encrypted in your browser before leaving your device
-                    </div>
-                  </div>
-                  <div className="p-5 bg-secondary-background rounded-base border border-border text-center">
-                    <div className="text-3xl mb-3">🔑</div>
-                    <div className="font-semibold mb-2">You Own the Keys</div>
-                    <div className="text-sm text-muted-foreground">
-                      Only you can decrypt your data. We never see your password
-                    </div>
-                  </div>
-                  <div className="p-5 bg-secondary-background rounded-base border border-border text-center">
-                    <div className="text-3xl mb-3">🌐</div>
-                    <div className="font-semibold mb-2">Blockchain Synced</div>
-                    <div className="text-sm text-muted-foreground">
-                      Connect wallet to sync your file list across devices
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <VaultUnlockModal 
-                onUnlock={handleUnlock} 
-                onReset={handleReset} 
-                onCancel={handleCancelUnlock} 
-              />
-            )}
-          </>
+      <Navbar
+        isLocked={isLocked}
+        onLock={handleLock}
+        internalWallet={internalWallet?.address}
+        ipfsConnected={ipfsReady}
+        encryptionReady={!!password}
+        walletBalance={walletBalance}
+        needsGas={needsGas}
+        blockchainReady={blockchainReady}
+        onThemeToggle={toggleTheme}
+        isDark={isDark}
+      />
+      
+      {isSetup ? (
+        showSetupModal ? (
+          <SetupModal 
+            onComplete={handleSetupComplete} 
+            onUseRecovery={handleUseRecoveryFromSetup}
+            onCancel={() => setShowSetupModal(false)}
+          />
         ) : (
-          <>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-4 bg-secondary-background rounded-base p-5 sm:p-6 border border-border">
-                <div className="flex gap-2 mb-5">
-                  <button
-                    className={`flex-1 px-4 py-2.5 rounded-base border transition-all ${
-                      activeTab === 'files' 
-                        ? 'bg-main text-main-foreground border-main' 
-                        : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
-                    }`}
-                    onClick={() => setActiveTab('files')}
-                  >
-                    📁 Files
-                  </button>
-                  <button
-                    className={`flex-1 px-4 py-2.5 rounded-base border transition-all ${
-                      activeTab === 'notes' 
-                        ? 'bg-main text-main-foreground border-main' 
-                        : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
-                    }`}
-                    onClick={() => setActiveTab('notes')}
-                  >
-                    📝 Notes
-                  </button>
-                </div>
-                
-                {activeTab === 'files' && (
-                  <FileUpload onUpload={handleFileUpload} />
-                )}
-                
-                {activeTab === 'notes' && (
-                  <NoteEditor onSave={handleNoteSave} />
-                )}
-                
-                {vaultId && (
-                  <div className="mt-4 p-3 bg-background rounded-base border border-border">
-                    <p className="text-xs text-muted-foreground">
-                      Vault ID: {vaultId.slice(0, 8)}...{vaultId.slice(-4)}
-                    </p>
-                  </div>
-                )}
+          <HeroSection onGetStarted={() => setShowSetupModal(true)} />
+        )
+      ) : isLocked ? (
+        <div className="max-w-md mx-auto px-4 py-8">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-main/20 to-teal-500/20 flex items-center justify-center">
+              <span className="text-3xl">🔒</span>
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Welcome Back</h2>
+            <p className="text-muted-foreground">Enter your password to unlock your vault</p>
+          </div>
+          <VaultUnlockModal 
+            onUnlock={handleUnlock} 
+            onReset={handleReset} 
+            onCancel={null}
+          />
+        </div>
+      ) : (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <Dashboard
+            files={files}
+            walletAddress={internalWallet?.address}
+            blockchainReady={blockchainReady}
+            ipfsConnected={ipfsReady}
+            needsGas={needsGas}
+          />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-8">
+            <div className="lg:col-span-4 bg-secondary-background rounded-lg p-6 border border-border">
+              <div className="flex gap-2 mb-5">
+                <button
+                  className={`flex-1 px-4 py-2.5 rounded-lg border transition-all font-medium ${
+                    activeTab === 'files' 
+                      ? 'bg-main text-white border-transparent' 
+                      : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:border-main/50'
+                  }`}
+                  onClick={() => setActiveTab('files')}
+                >
+                  📁 Files
+                </button>
+                <button
+                  className={`flex-1 px-4 py-2.5 rounded-lg border transition-all font-medium ${
+                    activeTab === 'notes' 
+                      ? 'bg-main text-white border-transparent' 
+                      : 'bg-transparent border-border text-muted-foreground hover:text-foreground hover:border-main/50'
+                  }`}
+                  onClick={() => setActiveTab('notes')}
+                >
+                  📝 Notes
+                </button>
               </div>
               
-              <div className="lg:col-span-8 bg-secondary-background rounded-base p-5 sm:p-6 border border-border">
-                <FileList
-                  files={files}
-                  onDownload={handleFileDownload}
-                  onDelete={handleFileDelete}
+              {activeTab === 'files' && (
+                <FileUpload 
+                  onUpload={handleFileUpload}
+                  needsGas={needsGas}
+                  blockchainReady={blockchainReady}
                 />
-              </div>
+              )}
+              
+              {activeTab === 'notes' && (
+                <NoteEditor onSave={handleNoteSave} />
+              )}
             </div>
             
-            <div className="text-center mt-8">
-              <p className="text-sm text-muted-foreground mb-3">
-                {walletAddress 
-                  ? 'Files are encrypted, stored on IPFS, and synced to blockchain for cross-device access.'
-                  : 'Connect wallet to enable cross-device sync via blockchain.'}
-              </p>
-              <button 
-                onClick={handleLock} 
-                className="px-6 py-3 bg-secondary-background border border-border rounded-base hover:bg-background transition-colors font-medium inline-flex items-center gap-2"
+            <div className="lg:col-span-8 bg-secondary-background rounded-lg p-6 border border-border">
+              <FileList
+                files={files}
+                onDownload={handleFileDownload}
+                onDelete={handleFileDelete}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-overlay backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-secondary-background rounded-lg p-6 max-w-md w-full border border-border shadow-xl">
+            <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
+              <span>⚠️</span> Create New Vault
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              This will permanently delete your current vault and all encrypted files. This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 px-4 py-2 bg-background border border-border rounded-lg font-medium hover:bg-secondary-background transition-all"
               >
-                <span>🔒</span>
-                <span>Lock Vault</span>
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowResetConfirm(false);
+                  handleReset();
+                }}
+                className="flex-1 px-4 py-2 bg-error text-white rounded-lg font-medium hover:bg-red-600 transition-all"
+              >
+                Delete & Create New
               </button>
             </div>
-            
-            <StatusBar
-              internalWallet={internalWallet?.address}
-              ipfsConnected={ipfsReady}
-              encryptionReady={!!password}
-              walletBalance={walletBalance}
-              needsGas={needsGas}
-              blockchainReady={blockchainReady}
-            />
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
       
       <ErrorModal 
         message={errorMessage}

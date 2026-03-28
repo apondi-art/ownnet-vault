@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 
-export default function FileUpload({ onUpload }) {
+export default function FileUpload({ onUpload, needsGas, blockchainReady }) {
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -56,12 +56,26 @@ export default function FileUpload({ onUpload }) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
+  const showSyncWarning = blockchainReady && needsGas;
+
   return (
     <div>
-      <h3 className="text-lg sm:text-xl font-bold mb-4">📁 Upload File</h3>
+      <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+        <span className="text-lg">📤</span>
+        Upload File
+      </h3>
+      
+      {/* Sync Warning */}
+      {showSyncWarning && (
+        <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/30 rounded-lg">
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            ⚠️ <strong>Note:</strong> File will be encrypted and stored safely. To sync across devices, <a href="https://sepolia-faucet.pk910.de/" target="_blank" rel="noopener noreferrer" className="underline font-medium">add test ETH</a>.
+          </p>
+        </div>
+      )}
       
       <div
-        className={`border-2 border-dashed rounded-base p-6 sm:p-8 text-center cursor-pointer transition-all ${
+        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
           dragging 
             ? 'border-main bg-main/5' 
             : 'border-border hover:border-main/50 hover:bg-main/5'
@@ -71,9 +85,14 @@ export default function FileUpload({ onUpload }) {
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
-        <div className="text-4xl mb-3">📤</div>
-        <p className="text-muted-foreground">
-          {file ? file.name : 'Drag and drop a file or click to select'}
+        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-main/10 flex items-center justify-center">
+          <span className="text-2xl">📤</span>
+        </div>
+        <p className="text-sm text-foreground font-medium mb-1">
+          {file ? file.name : 'Drop file or click to upload'}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Encrypted before upload • AES-256
         </p>
         <input
           ref={fileInputRef}
@@ -84,17 +103,20 @@ export default function FileUpload({ onUpload }) {
       </div>
       
       {file && (
-        <div className="mt-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 p-3 bg-background rounded-base">
-            <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatSize(file.size)} • {file.type || 'Unknown type'}
-              </p>
+        <div className="mt-3">
+          <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-border mb-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-lg">📄</span>
+              <div className="min-w-0">
+                <p className="font-medium text-foreground text-sm truncate">{file.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatSize(file.size)} • {file.type || 'Unknown'}
+                </p>
+              </div>
             </div>
             <button
               onClick={() => setFile(null)}
-              className="flex-shrink-0 p-2 bg-error/20 text-error rounded-base hover:bg-error/30 transition-colors"
+              className="flex-shrink-0 p-1.5 text-muted-foreground hover:text-error transition-colors"
             >
               ✕
             </button>
@@ -102,16 +124,24 @@ export default function FileUpload({ onUpload }) {
           
           <button
             onClick={handleUpload}
-            className="w-full bg-main text-main-foreground px-6 py-3 rounded-base font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="w-full bg-main text-white px-4 py-2.5 rounded-lg font-medium hover:bg-main-dark transition-all disabled:opacity-50"
             disabled={uploading}
           >
             {uploading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-main-foreground border-t-transparent rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 Encrypting...
               </span>
-            ) : '🔐 Encrypt & Upload'}
+            ) : (
+              '🔐 Encrypt & Upload'
+            )}
           </button>
+          
+          {showSyncWarning && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              ✓ File will be encrypted • ⚠️ Sync requires test ETH
+            </p>
+          )}
         </div>
       )}
     </div>
