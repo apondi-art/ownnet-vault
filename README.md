@@ -30,9 +30,9 @@
 
 ### 🚀 Live Demo
 
-**Deployed:** [Your Vercel URL]
+**Deployed:** https://ownnet-vault.vercel.app/
 
-**Demo Video:** [Link to 3-min video]
+**Demo Video:** [Record a 3-min walkthrough and add link here]
 
 ---
 
