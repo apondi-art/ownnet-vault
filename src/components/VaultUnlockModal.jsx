@@ -35,8 +35,12 @@ export default function VaultUnlockModal({ onUnlock, onReset, onCancel }) {
       const storedRecovery = localStorage.getItem('ownnet-vault-recovery-hash');
       const storedEncryptedPassword = localStorage.getItem('ownnet-vault-encrypted-password');
       
+      console.log('Recovery phrase submitted, storedRecovery:', !!storedRecovery, 'storedEncryptedPassword:', !!storedEncryptedPassword);
+      
       if (!storedRecovery || !storedEncryptedPassword) {
+        console.log('New device detected - showing password modal');
         setNeedPassword(true);
+        setError('');
         return;
       }
       
