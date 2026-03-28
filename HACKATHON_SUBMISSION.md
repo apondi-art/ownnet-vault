@@ -338,6 +338,85 @@ The hackathon description specifically mentions:
 3. **Show passion** - Explain WHY you built this
 4. **Highlight innovation** - What's unique about your approach?
 
+---
+
+## 🧪 Judge Testing Instructions
+
+### For Judges: How to Test Blockchain Sync
+
+**Step 1: Create Your Vault**
+1. Go to: https://ownnet-vault.vercel.app/
+2. Click "Get Started"
+3. Create a password (minimum 8 characters)
+4. Write down your 12-word recovery phrase
+5. Complete setup
+
+**Step 2: Get Test ETH (for blockchain sync)**
+
+Blockchain sync requires a tiny amount of test ETH (network fee). Files work WITHOUT it, but sync needs it.
+
+| Faucet | URL | Amount | Time |
+|--------|-----|--------|------|
+| **PoW Faucet** | https://sepolia-faucet.pk910.de/ | 0.05+ ETH | 2-5 min |
+| **QuickNode** | https://faucet.quicknode.com/ethereum/sepolia | 0.1 ETH | 1-2 min |
+| **Alchemy** | https://sepoliafaucet.com/ | 0.5 ETH | Instant |
+
+**Step 3: Use Faucet**
+```
+1. Click "Enable Sync" or "Get Free Sync Credits" in the app
+2. Copy your wallet address shown in the modal
+3. Go to one of the faucets above
+4. Paste your address and submit
+5. Wait 1-2 minutes for ETH to arrive
+6. Refresh the page
+```
+
+**Step 4: Test Cross-Device Sync**
+```
+1. Upload a file
+2. Note: File is encrypted and stored on IPFS
+3. If you have test ETH: File list syncs to blockchain
+4. Go to another browser/device
+5. Enter your 12-word recovery phrase
+6. Your files appear - synced via blockchain!
+```
+
+### Alternative: Test Without Blockchain
+
+The core features work WITHOUT test ETH:
+- ✅ File encryption (AES-256-GCM)
+- ✅ IPFS storage (decentralized)
+- ✅ Notes encryption
+- ✅ Local storage
+- ❌ Cross-device sync (requires test ETH)
+
+**If judge doesn't want to use faucet:**
+- Files still work perfectly
+- Everything is encrypted and stored on IPFS
+- Only sync feature is limited
+
+---
+
+### Expected Judge Experience
+
+**Scenario 1: Judge uses faucet**
+```
+✅ All features work
+✅ Files encrypt and upload
+✅ File list syncs to blockchain
+✅ Cross-device access works
+```
+
+**Scenario 2: Judge skips faucet**
+```
+✅ Files encrypt and upload
+✅ IPFS storage works
+✅ All security features work
+⚠️  Sync status shows "needs credits"
+```
+
+Both scenarios demonstrate the core privacy and security features.
+
 ### Common Questions to Prepare
 
 **Q: Why not use existing solutions like Dropbox with encryption?**

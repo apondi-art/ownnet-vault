@@ -101,7 +101,45 @@ Recovery: 12-word phrase → Derive Key → Access anywhere
 
 ---
 
-## Overview
+## 🧪 Judge Testing Guide
+
+### Quick Start for Judges
+
+1. **Open the demo:** https://ownnet-vault.vercel.app/
+2. **Create a vault:** Password + 12-word recovery phrase
+3. **Upload a file:** Watch it encrypt in real-time
+
+### To Test Blockchain Sync (Cross-Device)
+
+Blockchain sync requires a small amount of test ETH. 
+
+**Get Free Test ETH:**
+
+| Faucet | URL | Amount |
+|--------|-----|--------|
+| PoW Faucet | https://sepolia-faucet.pk910.de/ | 0.05+ ETH |
+| QuickNode | https://faucet.quicknode.com/ethereum/sepolia | 0.1 ETH |
+
+**Steps:**
+```
+1. In the app, click "Enable Sync" or "Get Free Credits"
+2. Copy your wallet address
+3. Paste at faucet URL above
+4. Wait 1-2 minutes
+5. Refresh page - sync now works!
+```
+
+### What Works Without Test ETH
+
+If you don't want to use faucets, these features still work perfectly:
+
+- ✅ Client-side AES-256-GCM encryption
+- ✅ IPFS decentralized storage
+- ✅ Encrypted notes
+- ✅ Local file management
+- ⚠️ Cross-device sync (requires test ETH)
+
+---
 
 ## Problem Statement
 
