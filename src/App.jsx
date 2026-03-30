@@ -206,7 +206,12 @@ const [loading, setLoading] = useState(true);
     
     if (storedFiles) {
       try {
-        setFiles(JSON.parse(storedFiles));
+        const parsedFiles = JSON.parse(storedFiles);
+        const filesWithSyncStatus = parsedFiles.map(f => ({
+          ...f,
+          synced: f.synced !== undefined ? f.synced : false
+        }));
+        setFiles(filesWithSyncStatus);
       } catch (e) {
         console.error('Failed to parse stored files:', e);
       }
@@ -476,15 +481,57 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
           if (onChainManifest && onChainManifest.manifestCID) {
             const manifestData = await loadManifestFromIPFS(onChainManifest.manifestCID, unlockPassword);
             if (manifestData && manifestData.files) {
+              const storedFiles = localStorage.getItem(STORAGE_KEY_FILES);
+              let localFiles = [];
+              try {
+                localFiles = storedFiles ? JSON.parse(storedFiles) : [];
+              } catch (e) {
+                console.error('Failed to parse local files:', e);
+              }
+              
+              const blockchainFiles = manifestData.files.map(f => ({
+                ...f,
+                synced: f.synced !== undefined ? f.synced : true
+              }));
+              
+              const localFilesWithStatus = localFiles.map(f => ({
+                ...f,
+                synced: f.synced !== undefined ? f.synced : false
+              }));
+              
+              const localFileIds = new Set(localFilesWithStatus.map(f => f.id));
+              const blockchainFileIds = new Set(blockchainFiles.map(f => f.id));
+              
+              let mergedFiles;
+              if (blockchainFileIds.size === 0) {
+                mergedFiles = localFilesWithStatus;
+              } else {
+                mergedFiles = [
+                  ...blockchainFiles,
+                  ...localFilesWithStatus.filter(f => !blockchainFileIds.has(f.id))
+                ];
+              }
+              
               setManifest(manifestData);
-              setFiles(manifestData.files);
+              setFiles(mergedFiles);
               setVaultId(manifestData.vaultId);
               localStorage.setItem(STORAGE_KEY_MANIFEST_CID, onChainManifest.manifestCID);
               if (manifestData.vaultId) {
                 localStorage.setItem(STORAGE_KEY_VAULT_ID, manifestData.vaultId);
               }
+              localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(mergedFiles));
+              
+              const unsynced = mergedFiles.filter(f => !f.synced);
+              setSyncStatus({
+                hasUnsyncedFiles: unsynced.length > 0,
+                unsyncedCount: unsynced.length,
+                lastSyncTime: null,
+                isSyncing: false,
+                syncError: null
+              });
+              
               manifestLoaded = true;
-              console.log('Manifest loaded from blockchain:', manifestData.files.length, 'files');
+              console.log('Blockchain:', blockchainFiles.length, 'files. Local:', localFilesWithStatus.length, 'Merged:', mergedFiles.length, 'Unsynced:', unsynced.length);
             }
           }
         } catch (e) {
@@ -496,9 +543,14 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
         try {
           const manifestData = await loadManifestFromIPFS(storedManifestCID, unlockPassword);
           if (manifestData && manifestData.files) {
+            const filesWithSyncStatus = manifestData.files.map(f => ({
+              ...f,
+              synced: f.synced !== undefined ? f.synced : true
+            }));
             setManifest(manifestData);
-            setFiles(manifestData.files);
+            setFiles(filesWithSyncStatus);
             setVaultId(manifestData.vaultId);
+            localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(filesWithSyncStatus));
             manifestLoaded = true;
             console.log('Manifest loaded from IPFS CID:', manifestData.files.length, 'files');
           }
@@ -511,7 +563,12 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
         const storedFiles = localStorage.getItem(STORAGE_KEY_FILES);
         if (storedFiles) {
           try {
-            setFiles(JSON.parse(storedFiles));
+            const parsedFiles = JSON.parse(storedFiles);
+            const filesWithSyncStatus = parsedFiles.map(f => ({
+              ...f,
+              synced: f.synced !== undefined ? f.synced : false
+            }));
+            setFiles(filesWithSyncStatus);
             console.log('Files loaded from localStorage');
           } catch (e) {
             console.error('Failed to parse stored files:', e);
