@@ -72,7 +72,7 @@ export default function HeroSection({ onGetStarted }) {
           onClick={onGetStarted}
           className="px-8 py-4 bg-main text-white rounded-lg font-semibold text-lg hover:bg-main-dark transition-all hover:shadow-lg hover:-translate-y-0.5 mb-12"
         >
-          🚀 Get Started — It's Free
+          🚀 Get Started 
         </button>
 
         {/* Stats */}
