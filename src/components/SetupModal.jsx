@@ -239,8 +239,8 @@ export default function SetupModal({ onComplete, onUseRecovery, onCancel }) {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
                 <span className="text-3xl">🔑</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold mb-2">Recovery Phrase</h2>
-              <p className="text-muted-foreground text-sm sm:text-base">
+              <h2 className="text-xl sm:text-2xl font-bold mb-2 text-foreground">Recovery Phrase</h2>
+              <p className="text-foreground/80 text-sm sm:text-base">
                 Write down these 12 words. You'll need them if you forget your password.
               </p>
             </div>
@@ -248,9 +248,9 @@ export default function SetupModal({ onComplete, onUseRecovery, onCancel }) {
             <div className="bg-gradient-to-br from-background to-border-light border border-border rounded-lg p-4 mb-4">
               <div className="grid grid-cols-3 gap-2">
                 {recoveryPhrase.split(' ').map((word, index) => (
-                  <div key={index} className="flex items-center gap-2 bg-background/50 px-2 py-1.5 rounded">
+                  <div key={index} className="flex items-center gap-2 bg-secondary-background/50 dark:bg-background/50 px-2 py-1.5 rounded border border-border/50">
                     <span className="text-xs text-muted-foreground w-4">{index + 1}.</span>
-                    <span className="font-medium text-sm">{word}</span>
+                    <span className="font-medium text-sm text-foreground">{word}</span>
                   </div>
                 ))}
               </div>
@@ -264,12 +264,12 @@ export default function SetupModal({ onComplete, onUseRecovery, onCancel }) {
               📋 Copy to Clipboard
             </button>
             
-            <div className="bg-warning-light border border-warning/30 rounded-lg p-4 mb-4">
+            <div className="bg-warning-light/50 dark:bg-warning/10 border border-warning/50 dark:border-warning/30 rounded-lg p-4 mb-4">
               <p className="text-sm text-warning font-semibold mb-1">⚠️ Important</p>
-              <p className="text-xs sm:text-sm text-warning/80">
+              <p className="text-xs sm:text-sm text-warning/90 dark:text-warning/80">
                 Store this phrase safely! If you lose both your password AND recovery phrase, your data cannot be recovered.
               </p>
-              <p className="text-xs sm:text-sm text-warning/80 mt-2 font-medium">
+              <p className="text-xs sm:text-sm text-warning/90 dark:text-warning/80 mt-2 font-medium">
                 You will need BOTH your password AND recovery phrase to recover on a new device.
               </p>
             </div>
@@ -290,8 +290,8 @@ export default function SetupModal({ onComplete, onUseRecovery, onCancel }) {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-success/20 to-emerald-500/20 flex items-center justify-center">
                 <span className="text-3xl">✅</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold mb-2">Verify Recovery Phrase</h2>
-              <p className="text-muted-foreground text-sm sm:text-base">
+              <h2 className="text-xl sm:text-2xl font-bold mb-2 text-foreground">Verify Recovery Phrase</h2>
+              <p className="text-foreground/80 text-sm sm:text-base">
                 Enter the following words from your recovery phrase to confirm you wrote it down correctly.
               </p>
             </div>
