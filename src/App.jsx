@@ -266,8 +266,8 @@ const [loading, setLoading] = useState(true);
       localStorage.setItem(STORAGE_KEY_ENCRYPTED_PASSWORD, encryptedPassword);
     }
     
+    let wallet;
     try {
-      let wallet;
       if (recoveryPhrase) {
         wallet = await restoreWalletFromMnemonic(recoveryPhrase, masterPassword);
         console.log('Wallet restored from recovery phrase:', formatAddress(wallet.address));
@@ -286,6 +286,20 @@ const [loading, setLoading] = useState(true);
           setBlockchainReady(true);
           setNeedsGas(!balance || parseFloat(balance) < 0.001);
           console.log('Blockchain ready. Balance:', balance, 'ETH');
+          
+          // Check if this wallet already has a vault on-chain
+          const existingVault = await hasVaultWithInternalWallet(wallet.address);
+          if (existingVault) {
+            setConfirmMessage('This recovery phrase is linked to an existing vault on the blockchain.\n\nIf you continue:\n• A NEW empty vault will be created\n• The old vault will remain on the blockchain\n• Both vaults will share the same recovery phrase\n\nFor better security, consider generating a NEW recovery phrase for a fresh start.\n\nDo you want to continue with this recovery phrase?');
+            setConfirmTitle('Existing Vault Detected');
+            setConfirmAction(() => async () => {
+              setConfirmMessage(null);
+              setConfirmTitle(null);
+              await createNewVault(masterPassword, passwordHash);
+            });
+            setupInProgress.current = false;
+            return;
+          }
         } catch (e) {
           console.warn('Could not initialize blockchain:', e.message);
           setBlockchainReady(false);
@@ -293,8 +307,14 @@ const [loading, setLoading] = useState(true);
       }
     } catch (e) {
       console.error('Failed to create internal wallet:', e);
+      setupInProgress.current = false;
+      return;
     }
     
+    await createNewVault(masterPassword, passwordHash);
+  };
+  
+  const createNewVault = async (masterPassword, passwordHash) => {
     const newManifest = createManifest(null);
     setManifest(newManifest);
     setVaultId(newManifest.vaultId);
@@ -495,7 +515,7 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
   };
 
   const handleReset = () => {
-    setConfirmMessage('This will delete all your encrypted data, files, and wallet. This action cannot be undone.');
+    setConfirmMessage('This will delete all your local data, files, and wallet.\n\n⚠️ SECURITY WARNING: Your recovery phrase can still be used on other browsers/devices to access your old vault. If you want to completely revoke access:\n• Anyone with your old recovery phrase can still restore your vault\n• Create a NEW vault with a NEW recovery phrase if you want to revoke old access\n• This action cannot be undone');
     setConfirmTitle('Reset Vault');
     setConfirmAction(() => () => {
       localStorage.removeItem(STORAGE_KEY_PASSWORD_HASH);
@@ -948,7 +968,7 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
       <ConfirmModal
         message={confirmMessage}
         title={confirmTitle}
-        confirmText={confirmTitle === 'Delete File' ? 'Delete' : confirmTitle === 'Delete All Data' ? 'Delete Forever' : 'Reset'}
+        confirmText={confirmTitle === 'Delete File' ? 'Delete' : confirmTitle === 'Delete All Data' ? 'Delete Forever' : confirmTitle === 'Existing Vault Detected' ? 'Continue Anyway' : 'Reset'}
         danger={confirmTitle === 'Delete File' || confirmTitle === 'Reset Vault' || confirmTitle === 'Delete All Data'}
         onConfirm={handleConfirmAction}
         onCancel={handleCancelConfirm}
