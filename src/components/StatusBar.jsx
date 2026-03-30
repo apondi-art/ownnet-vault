@@ -1,16 +1,7 @@
 import React, { useState } from 'react';
 import { isContractConfigured } from '../utils/web3';
 
-export default function StatusBar({ 
-  internalWallet, 
-  ipfsConnected, 
-  encryptionReady, 
-  walletBalance, 
-  needsGas, 
-  blockchainReady,
-  syncStatus,
-  onSyncAll
-}) {
+export default function StatusBar({ internalWallet, ipfsConnected, encryptionReady, walletBalance, needsGas, blockchainReady }) {
   const contractReady = isContractConfigured();
   const [showGasGuide, setShowGasGuide] = useState(false);
   const [showWalletInfo, setShowWalletInfo] = useState(false);
@@ -189,39 +180,6 @@ export default function StatusBar({
               {!hasGas && needsGas && ' (Low)'}
             </span>
           </div>
-        )}
-        
-        {blockchainReady && syncStatus && (
-          <div className="flex items-center gap-2 text-sm mt-2">
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              syncStatus.isSyncing ? 'bg-info animate-pulse' : 
-              syncStatus.hasUnsyncedFiles ? 'bg-warning' : 'bg-success'
-            }`}></span>
-            <span className={syncStatus.hasUnsyncedFiles ? 'text-warning' : ''}>
-              {syncStatus.isSyncing 
-                ? 'Syncing...' 
-                : syncStatus.hasUnsyncedFiles 
-                  ? `${syncStatus.unsyncedCount} unsynced` 
-                  : 'All synced ✓'}
-            </span>
-          </div>
-        )}
-        
-        {syncStatus && syncStatus.hasUnsyncedFiles && blockchainReady && !needsGas && onSyncAll && (
-          <button 
-            onClick={onSyncAll}
-            disabled={syncStatus.isSyncing}
-            className="mt-3 w-full text-xs bg-main/10 text-main border border-main/30 rounded-base px-3 py-2 hover:bg-main/20 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {syncStatus.isSyncing ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="w-3 h-3 border-2 border-main border-t-transparent rounded-full animate-spin" />
-                Syncing...
-              </span>
-            ) : (
-              `⬆️ Sync ${syncStatus.unsyncedCount} file${syncStatus.unsyncedCount > 1 ? 's' : ''} to chain`
-            )}
-          </button>
         )}
         
         <div className="flex items-center gap-2 text-sm mt-2">

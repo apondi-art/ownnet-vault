@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
 
-export default function FileList({ 
-  files, 
-  onDownload, 
-  onDelete, 
-  onSyncFile,
-  blockchainReady,
-  needsGas 
-}) {
+export default function FileList({ files, onDownload, onDelete }) {
   const [downloadingId, setDownloadingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedFile, setExpandedFile] = useState(null);
-  const [syncingFileId, setSyncingFileId] = useState(null);
 
   const handleDownload = async (file) => {
     setDownloadingId(file.id);
@@ -19,16 +11,6 @@ export default function FileList({
       await onDownload(file);
     } finally {
       setDownloadingId(null);
-    }
-  };
-
-  const handleSyncFile = async (file) => {
-    if (!onSyncFile) return;
-    setSyncingFileId(file.id);
-    try {
-      await onSyncFile(file.id);
-    } finally {
-      setSyncingFileId(null);
     }
   };
 
@@ -65,8 +47,6 @@ export default function FileList({
     file.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const unsyncedFiles = files.filter(f => !f.synced);
-
   if (files.length === 0) {
     return (
       <div className="text-center py-16">
@@ -99,11 +79,6 @@ export default function FileList({
           <span className="px-2 py-1 text-xs font-medium rounded-full bg-main text-white">
             {files.length}
           </span>
-          {unsyncedFiles.length > 0 && (
-            <span className="px-2 py-1 text-xs font-medium rounded-full bg-warning-light dark:bg-warning/10 text-warning">
-              ⚠️ {unsyncedFiles.length} unsynced
-            </span>
-          )}
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
@@ -143,18 +118,7 @@ export default function FileList({
                   {getFileIcon(file.type)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-foreground truncate">{file.name}</p>
-                    {file.synced ? (
-                      <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-xs bg-success-light dark:bg-success/10 text-success font-medium">
-                        ✓ Synced
-                      </span>
-                    ) : (
-                      <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-xs bg-warning-light dark:bg-warning/10 text-warning font-medium">
-                        ⚠️ Local
-                      </span>
-                    )}
-                  </div>
+                  <p className="font-medium text-foreground truncate">{file.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {formatSize(file.size)} • {formatDate(file.timestamp)}
                   </p>
@@ -179,24 +143,6 @@ export default function FileList({
                     'Download'
                   )}
                 </button>
-                
-                {!file.synced && blockchainReady && !needsGas && (
-                  <button
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-secondary-background border border-main text-main rounded-lg hover:bg-main hover:text-white transition-all text-sm font-medium"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSyncFile(file);
-                    }}
-                    disabled={syncingFileId === file.id}
-                    title="Sync to blockchain for cross-device access"
-                  >
-                    {syncingFileId === file.id ? (
-                      <span className="w-4 h-4 border-2 border-main border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      '⬆️ Sync'
-                    )}
-                  </button>
-                )}
                 
                 <button
                   className="flex items-center justify-center px-3 py-2 bg-background border border-border rounded-lg hover:bg-error-light hover:border-error hover:text-error transition-all text-sm"
@@ -229,28 +175,7 @@ export default function FileList({
                     <span className="text-muted-foreground">Storage:</span>
                     <span className="ml-2 text-foreground">{file.storageType || 'IPFS'}</span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Blockchain:</span>
-                    <span className="ml-2">
-                      {file.synced ? (
-                        <span className="text-success font-medium">✓ Synced</span>
-                      ) : (
-                        <span className="text-warning font-medium">⚠️ Not synced</span>
-                      )}
-                    </span>
-                  </div>
-                  {file.syncedAt && (
-                    <div>
-                      <span className="text-muted-foreground">Synced at:</span>
-                      <span className="ml-2 text-foreground">{new Date(file.syncedAt).toLocaleString()}</span>
-                    </div>
-                  )}
                 </div>
-                {!file.synced && (
-                  <div className="mt-2 pt-2 border-t border-border text-xs text-muted-foreground">
-                    ℹ️ Core features work without blockchain. Sync enables cross-device access.
-                  </div>
-                )}
               </div>
             )}
           </div>

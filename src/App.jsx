@@ -56,12 +56,10 @@ import {
   createManifest,
   addFileToManifest,
   removeFileFromManifest,
-  getUnsyncedFiles,
-  getSyncedFiles,
-  markFileAsSynced,
-  markAllFilesAsSynced,
   encryptManifest,
-  decryptManifest
+  decryptManifest,
+  getManifestIdForVault,
+  getManifestSummary
 } from './utils/manifest';
 import {
   createAndStoreWallet,
@@ -110,14 +108,6 @@ const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [syncStatus, setSyncStatus] = useState({
-    hasUnsyncedFiles: false,
-    unsyncedCount: 0,
-    lastSyncTime: null,
-    isSyncing: false,
-    syncError: null
-  });
-  const [isSyncingBlockchain, setIsSyncingBlockchain] = useState(false);
   
   const setupInProgress = useRef(false);
   
@@ -141,11 +131,34 @@ const [loading, setLoading] = useState(true);
       localStorage.setItem(STORAGE_KEY_MANIFEST_CID, manifestCID);
       setManifestCID(manifestCID);
       
-      console.log('Manifest synced to IPFS:', manifestCID);
+      if (isContractConfigured() && internalWallet) {
+        try {
+          const hasGas = await hasEnoughGas();
+          if (!hasGas) {
+            setNeedsGas(true);
+            console.warn('Insufficient ETH for blockchain sync. Need at least 0.001 ETH.');
+            return manifestCID;
+          }
+          
+          await updateManifestWithInternalWallet(manifestCID);
+          console.log('Manifest synced to blockchain:', manifestCID);
+          setSyncError(null);
+        } catch (blockchainError) {
+          console.error('Failed to sync to blockchain:', blockchainError);
+          
+          if (blockchainError.message?.includes('insufficient funds') || 
+              blockchainError.message?.includes('gas')) {
+            setNeedsGas(true);
+            setSyncError('NeedSepoliaETH for blockchain sync. Get free ETH from faucet.');
+          } else {
+            setSyncError(blockchainError.message);
+          }
+        }
+      }
       
       return manifestCID;
     } catch (error) {
-      console.error('Failed to sync manifest to IPFS:', error);
+      console.error('Failed to sync manifest:', error);
       throw error;
     }
   };
@@ -186,12 +199,7 @@ const [loading, setLoading] = useState(true);
     
     if (storedFiles) {
       try {
-        const parsedFiles = JSON.parse(storedFiles);
-        const filesWithSyncStatus = parsedFiles.map(f => ({
-          ...f,
-          synced: f.synced !== undefined ? f.synced : false
-        }));
-        setFiles(filesWithSyncStatus);
+        setFiles(JSON.parse(storedFiles));
       } catch (e) {
         console.error('Failed to parse stored files:', e);
       }
@@ -213,13 +221,6 @@ const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(files));
-    
-    const unsyncedFiles = files.filter(f => !f.synced);
-    setSyncStatus(prev => ({
-      ...prev,
-      hasUnsyncedFiles: unsyncedFiles.length > 0,
-      unsyncedCount: unsyncedFiles.length
-    }));
   }, [files]);
   
   useEffect(() => {
@@ -461,57 +462,15 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
           if (onChainManifest && onChainManifest.manifestCID) {
             const manifestData = await loadManifestFromIPFS(onChainManifest.manifestCID, unlockPassword);
             if (manifestData && manifestData.files) {
-              const storedFiles = localStorage.getItem(STORAGE_KEY_FILES);
-              let localFiles = [];
-              try {
-                localFiles = storedFiles ? JSON.parse(storedFiles) : [];
-              } catch (e) {
-                console.error('Failed to parse local files:', e);
-              }
-              
-              const blockchainFiles = manifestData.files.map(f => ({
-                ...f,
-                synced: f.synced !== undefined ? f.synced : true
-              }));
-              
-              const localFilesWithStatus = localFiles.map(f => ({
-                ...f,
-                synced: f.synced !== undefined ? f.synced : false
-              }));
-              
-              const localFileIds = new Set(localFilesWithStatus.map(f => f.id));
-              const blockchainFileIds = new Set(blockchainFiles.map(f => f.id));
-              
-              let mergedFiles;
-              if (blockchainFileIds.size === 0) {
-                mergedFiles = localFilesWithStatus;
-              } else {
-                mergedFiles = [
-                  ...blockchainFiles,
-                  ...localFilesWithStatus.filter(f => !blockchainFileIds.has(f.id))
-                ];
-              }
-              
               setManifest(manifestData);
-              setFiles(mergedFiles);
+              setFiles(manifestData.files);
               setVaultId(manifestData.vaultId);
               localStorage.setItem(STORAGE_KEY_MANIFEST_CID, onChainManifest.manifestCID);
               if (manifestData.vaultId) {
                 localStorage.setItem(STORAGE_KEY_VAULT_ID, manifestData.vaultId);
               }
-              localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(mergedFiles));
-              
-              const unsynced = mergedFiles.filter(f => !f.synced);
-              setSyncStatus({
-                hasUnsyncedFiles: unsynced.length > 0,
-                unsyncedCount: unsynced.length,
-                lastSyncTime: null,
-                isSyncing: false,
-                syncError: null
-              });
-              
               manifestLoaded = true;
-              console.log('Blockchain:', blockchainFiles.length, 'files. Local:', localFilesWithStatus.length, 'Merged:', mergedFiles.length, 'Unsynced:', unsynced.length);
+              console.log('Manifest loaded from blockchain:', manifestData.files.length, 'files');
             }
           }
         } catch (e) {
@@ -523,14 +482,9 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
         try {
           const manifestData = await loadManifestFromIPFS(storedManifestCID, unlockPassword);
           if (manifestData && manifestData.files) {
-            const filesWithSyncStatus = manifestData.files.map(f => ({
-              ...f,
-              synced: f.synced !== undefined ? f.synced : true
-            }));
             setManifest(manifestData);
-            setFiles(filesWithSyncStatus);
+            setFiles(manifestData.files);
             setVaultId(manifestData.vaultId);
-            localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(filesWithSyncStatus));
             manifestLoaded = true;
             console.log('Manifest loaded from IPFS CID:', manifestData.files.length, 'files');
           }
@@ -543,12 +497,7 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
         const storedFiles = localStorage.getItem(STORAGE_KEY_FILES);
         if (storedFiles) {
           try {
-            const parsedFiles = JSON.parse(storedFiles);
-            const filesWithSyncStatus = parsedFiles.map(f => ({
-              ...f,
-              synced: f.synced !== undefined ? f.synced : false
-            }));
-            setFiles(filesWithSyncStatus);
+            setFiles(JSON.parse(storedFiles));
             console.log('Files loaded from localStorage');
           } catch (e) {
             console.error('Failed to parse stored files:', e);
@@ -667,9 +616,27 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
         storageKey: storageResult.hash,
         ipfsHash: storageResult.hash,
         isLocal: storageResult.local,
-        storageType: storageResult.local ? 'localStorage' : 'IPFS',
-        synced: false
+        storageType: storageResult.local ? 'localStorage' : 'IPFS'
       };
+      
+      if (!storageResult.local && isContractConfigured() && internalWallet) {
+        try {
+          const hasGas = await hasEnoughGas();
+          if (hasGas) {
+            await registerFileHashWithInternalWallet(storageResult.hash);
+            newFile.onChain = true;
+            console.log('File registered on blockchain:', storageResult.hash);
+          } else {
+            setNeedsGas(true);
+            console.warn('Skipping blockchain registration - insufficient ETH');
+          }
+        } catch (e) {
+          console.error('Failed to register file on blockchain:', e);
+          if (e.message?.includes('insufficient funds') || e.message?.includes('gas')) {
+            setNeedsGas(true);
+          }
+        }
+      }
       
       const updatedFiles = [newFile, ...files];
       setFiles(updatedFiles);
@@ -688,198 +655,13 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
       } catch (e) {
         console.error('Failed to sync manifest:', e);
       }
-      
-      const unsyncedFiles = getUnsyncedFiles(updatedManifest);
-      setSyncStatus({
-        ...syncStatus,
-        hasUnsyncedFiles: unsyncedFiles.length > 0,
-        unsyncedCount: unsyncedFiles.length
-      });
-      
     } catch (error) {
       console.error('Upload failed:', error);
       setErrorMessage('Failed to encrypt and upload file. Please try again.');
-setErrorTitle('Upload Error');
+      setErrorTitle('Upload Error');
     }
   };
-  
-  const handleSyncToBlockchain = async () => {
-    if (isSyncingBlockchain) {
-      setErrorMessage('A sync is already in progress. Please wait for it to complete.');
-      setErrorTitle('Sync In Progress');
-      return;
-    }
-    
-    if (!blockchainReady || needsGas) {
-      const balance = walletBalance ? parseFloat(walletBalance).toFixed(4) : '0';
-      setErrorMessage(`Blockchain sync requires ETH. You have ${balance} ETH. Need at least 0.001 ETH. Get free test ETH from a faucet in Settings.`);
-      setErrorTitle('Sync Requires ETH');
-      return;
-    }
-    
-    const unsyncedFiles = files.filter(f => !f.synced);
-    
-    if (unsyncedFiles.length === 0) {
-      setErrorMessage('All files are already synchronized to the blockchain.');
-      setErrorTitle('Already Synced');
-      return;
-    }
-    
-    setIsSyncingBlockchain(true);
-    setSyncStatus({ ...syncStatus, isSyncing: true, syncError: null });
-    
-    try {
-      const currentManifest = manifest || createManifest(vaultId);
-      
-      console.log('Starting sync: encrypting manifest...');
-      const manifestCID = await syncManifestToIPFS(currentManifest);
-      
-      if (!manifestCID) {
-        throw new Error('Failed to upload manifest to IPFS. Please try again.');
-      }
-      
-      console.log('Manifest uploaded to IPFS:', manifestCID);
-      
-      try {
-        console.log('Updating manifest on blockchain...');
-        await updateManifestWithInternalWallet(manifestCID);
-        console.log('Manifest updated on blockchain successfully');
-      } catch (blockchainError) {
-        console.error('Blockchain update failed:', blockchainError);
-        
-        const isRevertError = blockchainError.message?.includes('revert') || 
-                             blockchainError.message?.includes('CALL_EXCEPTION') ||
-                             blockchainError.message?.includes('execution reverted');
-        
-        const isNonceError = blockchainError.message?.includes('nonce') ||
-                            blockchainError.message?.includes('replacement transaction');
-        
-        if (isRevertError) {
-          throw new Error('Transaction failed. This is usually temporary. Please wait 30 seconds and try again. If the problem persists, your network connection may be unstable.');
-        }
-        
-        if (isNonceError) {
-          throw new Error('Another transaction is pending. Please wait for it to complete (check your wallet) and try again in 30 seconds.');
-        }
-        
-        throw blockchainError;
-      }
-      
-      const updatedManifest = markAllFilesAsSynced(currentManifest);
-      setManifest(updatedManifest);
-      
-      const updatedFiles = files.map(f => ({ ...f, synced: true }));
-      setFiles(updatedFiles);
-      localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(updatedFiles));
-      
-      setSyncStatus({
-        hasUnsyncedFiles: false,
-        unsyncedCount: 0,
-        lastSyncTime: Date.now(),
-        isSyncing: false,
-        syncError: null
-      });
-      
-      console.log(`Successfully synced ${unsyncedFiles.length} file(s) to blockchain`);
-      
-    } catch (error) {
-      console.error('Blockchain sync failed:', error);
-      setSyncStatus({
-        ...syncStatus,
-        isSyncing: false,
-        syncError: error.message
-      });
-      
-      if (error.message?.includes('insufficient funds') || 
-          error.message?.includes('gas') ||
-          error.message?.includes('ETH')) {
-        setNeedsGas(true);
-        setErrorMessage(`Insufficient ETH for blockchain sync. You need at least 0.001 ETH. Get free test ETH from Settings.`);
-      } else if (error.message?.includes('nonce') || error.message?.includes('pending')) {
-        setErrorMessage('Another transaction is in progress. Please wait 30 seconds and try again.');
-      } else if (error.message?.includes('revert') || error.message?.includes('Transaction failed')) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage(`Sync failed: ${error.message}. Please try again.`);
-      }
-      setErrorTitle('Sync Failed');
-    } finally {
-      setIsSyncingBlockchain(false);
-    }
-  };
-  
-  const handleSyncSingleFile = async (fileId) => {
-    if (!blockchainReady || needsGas) {
-      setErrorMessage('Blockchain sync requires ETH. Go to Settings and click "Get Free ETH" to get test ETH from a faucet.');
-      setErrorTitle('Sync Requires ETH');
-      return;
-    }
-    
-    const fileToSync = files.find(f => f.id === fileId);
-    if (!fileToSync || fileToSync.synced) {
-      return;
-    }
-    
-    setSyncStatus({ ...syncStatus, isSyncing: true, syncError: null });
-    
-    try {
-      const currentManifest = manifest || createManifest(vaultId);
-      const manifestCID = await syncManifestToIPFS(currentManifest);
-      
-      if (!manifestCID) {
-        throw new Error('Failed to upload manifest to IPFS');
-      }
-      
-      await updateManifestWithInternalWallet(manifestCID);
-      
-      const updatedManifest = markFileAsSynced(currentManifest, fileId);
-      setManifest(updatedManifest);
-      
-      const updatedFiles = files.map(f => 
-        f.id === fileId ? { ...f, synced: true, syncedAt: Date.now() } : f
-      );
-      setFiles(updatedFiles);
-      localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(updatedFiles));
-      
-      const remainingUnsynced = updatedFiles.filter(f => !f.synced).length;
-      setSyncStatus({
-        ...syncStatus,
-        hasUnsyncedFiles: remainingUnsynced > 0,
-        unsyncedCount: remainingUnsynced,
-        isSyncing: false
-      });
-      
-      console.log(`Successfully synced file to blockchain: ${fileToSync.name}`);
-      
-    } catch (error) {
-      console.error('File sync failed:', error);
-      setSyncStatus({
-        ...syncStatus,
-        isSyncing: false,
-        syncError: error.message
-      });
-      
-      if (error.message?.includes('insufficient funds') || error.message?.includes('gas')) {
-        setNeedsGas(true);
-        setErrorMessage('Insufficient ETH for blockchain sync. Get free test ETH from a faucet in Settings.');
-      } else {
-        setErrorMessage(`Failed to sync file: ${error.message}`);
-      }
-      setErrorTitle('Sync Failed');
-    }
-  };
-  
-  const checkUnsyncedFiles = () => {
-    const unsynced = files.filter(f => !f.synced);
-    const unsyncedManifestFiles = manifest ? getUnsyncedFiles(manifest) : [];
-    
-    setSyncStatus(prev => ({
-      ...prev,
-      hasUnsyncedFiles: unsynced.length > 0 || unsyncedManifestFiles.length > 0,
-      unsyncedCount: Math.max(unsynced.length, unsyncedManifestFiles.length)
-    }));
-  };
-  
+
   const handleFileDownload = async (file) => {
     try {
       let encryptedData;
@@ -1096,8 +878,6 @@ setErrorTitle('Upload Error');
             blockchainReady={blockchainReady}
             ipfsConnected={ipfsReady}
             needsGas={needsGas}
-            syncStatus={syncStatus}
-            onSyncAll={handleSyncToBlockchain}
           />
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-8">
@@ -1143,9 +923,6 @@ setErrorTitle('Upload Error');
                 files={files}
                 onDownload={handleFileDownload}
                 onDelete={handleFileDelete}
-                onSyncFile={handleSyncSingleFile}
-                blockchainReady={blockchainReady}
-                needsGas={needsGas}
               />
             </div>
           </div>
