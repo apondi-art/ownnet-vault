@@ -59,7 +59,9 @@ import {
   getUnsyncedFiles,
   getSyncedFiles,
   markFileAsSynced,
-  markAllFilesAsSynced
+  markAllFilesAsSynced,
+  encryptManifest,
+  decryptManifest
 } from './utils/manifest';
 import {
   createAndStoreWallet,
