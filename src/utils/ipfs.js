@@ -73,16 +73,43 @@ async function uploadToPinata(data) {
 }
 
 async function downloadFromPinata(hash) {
-  const gateway = import.meta.env.VITE_PINATA_GATEWAY || 'https://gateway.pinata.cloud/ipfs/';
-  const url = gateway.endsWith('/') ? `${gateway}${hash}` : `${gateway}/${hash}`;
+  const fallbackGateways = [
+    'https://ipfs.io/ipfs/',
+    'https://dweb.link/ipfs/',
+    'https://cloudflare-ipfs.com/ipfs/',
+    'https://ipfs.gateway.ipfs.io/ipfs/'
+  ];
   
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download from IPFS: ${response.statusText}`);
+  const configuredGateway = import.meta.env.VITE_PINATA_GATEWAY;
+  if (configuredGateway && !configuredGateway.includes('gateway.pinata.cloud')) {
+    fallbackGateways.unshift(configuredGateway);
   }
   
-  const arrayBuffer = await response.arrayBuffer();
-  return new Uint8Array(arrayBuffer);
+  const errors = [];
+  
+  for (const gateway of fallbackGateways) {
+    const url = gateway.endsWith('/') ? `${gateway}${hash}` : `${gateway}/${hash}`;
+    
+    try {
+      const response = await fetch(url, {
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/octet-stream'
+        }
+      });
+      
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        return new Uint8Array(arrayBuffer);
+      }
+      
+      errors.push(`${gateway}: ${response.status}`);
+    } catch (error) {
+      errors.push(`${gateway}: ${error.message}`);
+    }
+  }
+  
+  throw new Error(`Failed to download from IPFS. Tried gateways: ${errors.join(', ')}`);
 }
 
 export async function uploadToIPFS(data) {
