@@ -1,6 +1,6 @@
 # OwnNet Vault 🔐
 
-> **🏆 ETHOnline 2024 - Infrastructure & Digital Rights Track**
+> **- Infrastructure & Digital Rights Track**
 > 
 > A privacy-first data vault with client-side encryption and blockchain-verified cross-device sync
 
