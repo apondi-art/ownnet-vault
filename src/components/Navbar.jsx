@@ -12,7 +12,8 @@ export default function Navbar({
   needsGas, 
   blockchainReady,
   onThemeToggle,
-  isDark
+  isDark,
+  onOpenSettings
 }) {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const contractReady = isContractConfigured();
@@ -60,6 +61,16 @@ export default function Navbar({
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              {!isLocked && (
+                <button
+                  onClick={onOpenSettings}
+                  className="flex items-center justify-center w-9 h-9 rounded-lg border border-border bg-background hover:bg-secondary-background transition-colors"
+                  title="Settings"
+                >
+                  ⚙️
+                </button>
+              )}
+
               <button
                 onClick={() => setShowStatusModal(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-background rounded-lg border border-border hover:border-main/50 transition-all"
