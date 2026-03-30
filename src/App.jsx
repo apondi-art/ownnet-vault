@@ -10,6 +10,7 @@ import ConfirmModal from './components/ConfirmModal';
 import Dashboard from './components/Dashboard';
 import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
+import SettingsModal from './components/SettingsModal';
 import { useTheme } from './hooks/useTheme';
 import {
   encryptFile,
@@ -75,6 +76,7 @@ const STORAGE_KEY_RECOVERY = 'ownnet-vault-recovery-hash';
 const STORAGE_KEY_VAULT_ID = 'ownnet-vault-id';
 const STORAGE_KEY_MANIFEST_CID = 'ownnet-vault-manifest-cid';
 const STORAGE_KEY_ENCRYPTED_PASSWORD = 'ownnet-vault-encrypted-password';
+const LAST_ACTIVITY_KEY = 'ownnet-vault-last-activity';
 
 function App() {
   const { isDark, toggle: toggleTheme } = useTheme();
@@ -103,6 +105,7 @@ const [loading, setLoading] = useState(true);
   const [confirmTitle, setConfirmTitle] = useState('Confirm');
   const [confirmAction, setConfirmAction] = useState(null);
   const [pendingRecoveryPhrase, setPendingRecoveryPhrase] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
   
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   
@@ -219,6 +222,12 @@ const [loading, setLoading] = useState(true);
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(files));
   }, [files]);
+  
+  useEffect(() => {
+    if (!isLocked && password) {
+      localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+    }
+  }, [isLocked, password]);
   
   const handleSetupComplete = async (masterPassword, recoveryPhrase, isCancelled) => {
     if (setupInProgress.current) {
@@ -510,6 +519,55 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
     });
   };
   
+  const handleExportAllData = async () => {
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      vaultId: vaultId,
+      walletAddress: internalWallet?.address,
+      files: files,
+      manifestCID: manifestCID,
+      settings: localStorage.getItem('ownnet-vault-settings'),
+      lastActivity: localStorage.getItem(LAST_ACTIVITY_KEY)
+    };
+    
+    const jsonData = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ownnet-vault-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  
+  const handleDeleteAllData = () => {
+    setConfirmMessage('This will permanently delete ALL your data from this device, IPFS references, and clear all blockchain records. This action cannot be undone.');
+    setConfirmTitle('Delete All Data');
+    setConfirmAction(() => async () => {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('ownnet-vault')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      clearStoredWallet();
+      setFiles([]);
+      setManifest(null);
+      setVaultId(null);
+      setManifestCID(null);
+      setPassword(null);
+      setInternalWallet(null);
+      setWalletAddress(null);
+      setIsSetup(true);
+      setIsLocked(true);
+      setShowSettings(false);
+      setConfirmMessage(null);
+    });
+  };
+  
   const handleConfirmAction = () => {
     if (confirmAction) {
       confirmAction();
@@ -764,6 +822,7 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
         blockchainReady={blockchainReady}
         onThemeToggle={toggleTheme}
         isDark={isDark}
+        onOpenSettings={() => setShowSettings(true)}
       />
       
       {isSetup ? (
@@ -889,10 +948,18 @@ const handleUnlock = async (enteredCredential, isRecoveryPhrase = false, provide
       <ConfirmModal
         message={confirmMessage}
         title={confirmTitle}
-        confirmText={confirmTitle === 'Delete File' ? 'Delete' : 'Reset'}
-        danger={confirmTitle === 'Delete File' || confirmTitle === 'Reset Vault'}
+        confirmText={confirmTitle === 'Delete File' ? 'Delete' : confirmTitle === 'Delete All Data' ? 'Delete Forever' : 'Reset'}
+        danger={confirmTitle === 'Delete File' || confirmTitle === 'Reset Vault' || confirmTitle === 'Delete All Data'}
         onConfirm={handleConfirmAction}
         onCancel={handleCancelConfirm}
+      />
+      
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onExportAll={handleExportAllData}
+        onDeleteAllData={handleDeleteAllData}
+        walletAddress={internalWallet?.address}
       />
     </div>
   );
