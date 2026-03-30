@@ -27,10 +27,45 @@ export function addFileToManifest(manifest, fileMetadata) {
     ipfsHash: fileMetadata.ipfsHash,
     storageKey: fileMetadata.storageKey,
     timestamp: Date.now(),
-    storageType: fileMetadata.storageType || 'IPFS'
+    storageType: fileMetadata.storageType || 'IPFS',
+    synced: false
   });
   updated.updatedAt = Date.now();
   return updated;
+}
+
+export function markFileAsSynced(manifest, fileId) {
+  const updated = { ...manifest };
+  const file = updated.files.find(f => f.id === fileId);
+  if (file) {
+    file.synced = true;
+    file.syncedAt = Date.now();
+  }
+  updated.updatedAt = Date.now();
+  return updated;
+}
+
+export function markAllFilesAsSynced(manifest) {
+  const updated = { ...manifest };
+  const now = Date.now();
+  updated.files.forEach(file => {
+    if (!file.synced) {
+      file.synced = true;
+      file.syncedAt = now;
+    }
+  });
+  updated.updatedAt = now;
+  return updated;
+}
+
+export function getUnsyncedFiles(manifest) {
+  if (!manifest || !manifest.files) return [];
+  return manifest.files.filter(f => !f.synced);
+}
+
+export function getSyncedFiles(manifest) {
+  if (!manifest || !manifest.files) return [];
+  return manifest.files.filter(f => f.synced);
 }
 
 export function removeFileFromManifest(manifest, fileId) {
