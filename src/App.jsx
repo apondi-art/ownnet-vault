@@ -117,6 +117,7 @@ const [loading, setLoading] = useState(true);
     isSyncing: false,
     syncError: null
   });
+  const [isSyncingBlockchain, setIsSyncingBlockchain] = useState(false);
   
   const setupInProgress = useRef(false);
   
@@ -140,34 +141,11 @@ const [loading, setLoading] = useState(true);
       localStorage.setItem(STORAGE_KEY_MANIFEST_CID, manifestCID);
       setManifestCID(manifestCID);
       
-      if (isContractConfigured() && internalWallet) {
-        try {
-          const hasGas = await hasEnoughGas();
-          if (!hasGas) {
-            setNeedsGas(true);
-            console.warn('Insufficient ETH for blockchain sync. Need at least 0.001 ETH.');
-            return manifestCID;
-          }
-          
-          await updateManifestWithInternalWallet(manifestCID);
-          console.log('Manifest synced to blockchain:', manifestCID);
-          setSyncError(null);
-        } catch (blockchainError) {
-          console.error('Failed to sync to blockchain:', blockchainError);
-          
-          if (blockchainError.message?.includes('insufficient funds') || 
-              blockchainError.message?.includes('gas')) {
-            setNeedsGas(true);
-            setSyncError('NeedSepoliaETH for blockchain sync. Get free ETH from faucet.');
-          } else {
-            setSyncError(blockchainError.message);
-          }
-        }
-      }
+      console.log('Manifest synced to IPFS:', manifestCID);
       
       return manifestCID;
     } catch (error) {
-      console.error('Failed to sync manifest:', error);
+      console.error('Failed to sync manifest to IPFS:', error);
       throw error;
     }
   };
@@ -726,8 +704,15 @@ setErrorTitle('Upload Error');
   };
   
   const handleSyncToBlockchain = async () => {
+    if (isSyncingBlockchain) {
+      setErrorMessage('A sync is already in progress. Please wait for it to complete.');
+      setErrorTitle('Sync In Progress');
+      return;
+    }
+    
     if (!blockchainReady || needsGas) {
-      setErrorMessage('Blockchain sync requires ETH. Go to Settings and click "Get Free ETH" to get test ETH from a faucet.');
+      const balance = walletBalance ? parseFloat(walletBalance).toFixed(4) : '0';
+      setErrorMessage(`Blockchain sync requires ETH. You have ${balance} ETH. Need at least 0.001 ETH. Get free test ETH from a faucet in Settings.`);
       setErrorTitle('Sync Requires ETH');
       return;
     }
@@ -740,17 +725,45 @@ setErrorTitle('Upload Error');
       return;
     }
     
+    setIsSyncingBlockchain(true);
     setSyncStatus({ ...syncStatus, isSyncing: true, syncError: null });
     
     try {
       const currentManifest = manifest || createManifest(vaultId);
+      
+      console.log('Starting sync: encrypting manifest...');
       const manifestCID = await syncManifestToIPFS(currentManifest);
       
       if (!manifestCID) {
-        throw new Error('Failed to upload manifest to IPFS');
+        throw new Error('Failed to upload manifest to IPFS. Please try again.');
       }
       
-      await updateManifestWithInternalWallet(manifestCID);
+      console.log('Manifest uploaded to IPFS:', manifestCID);
+      
+      try {
+        console.log('Updating manifest on blockchain...');
+        await updateManifestWithInternalWallet(manifestCID);
+        console.log('Manifest updated on blockchain successfully');
+      } catch (blockchainError) {
+        console.error('Blockchain update failed:', blockchainError);
+        
+        const isRevertError = blockchainError.message?.includes('revert') || 
+                             blockchainError.message?.includes('CALL_EXCEPTION') ||
+                             blockchainError.message?.includes('execution reverted');
+        
+        const isNonceError = blockchainError.message?.includes('nonce') ||
+                            blockchainError.message?.includes('replacement transaction');
+        
+        if (isRevertError) {
+          throw new Error('Transaction failed. This is usually temporary. Please wait 30 seconds and try again. If the problem persists, your network connection may be unstable.');
+        }
+        
+        if (isNonceError) {
+          throw new Error('Another transaction is pending. Please wait for it to complete (check your wallet) and try again in 30 seconds.');
+        }
+        
+        throw blockchainError;
+      }
       
       const updatedManifest = markAllFilesAsSynced(currentManifest);
       setManifest(updatedManifest);
@@ -777,13 +790,21 @@ setErrorTitle('Upload Error');
         syncError: error.message
       });
       
-      if (error.message?.includes('insufficient funds') || error.message?.includes('gas')) {
+      if (error.message?.includes('insufficient funds') || 
+          error.message?.includes('gas') ||
+          error.message?.includes('ETH')) {
         setNeedsGas(true);
-        setErrorMessage('Insufficient ETH for blockchain sync. Get free test ETH from a faucet in Settings.');
+        setErrorMessage(`Insufficient ETH for blockchain sync. You need at least 0.001 ETH. Get free test ETH from Settings.`);
+      } else if (error.message?.includes('nonce') || error.message?.includes('pending')) {
+        setErrorMessage('Another transaction is in progress. Please wait 30 seconds and try again.');
+      } else if (error.message?.includes('revert') || error.message?.includes('Transaction failed')) {
+        setErrorMessage(error.message);
       } else {
-        setErrorMessage(`Failed to sync to blockchain: ${error.message}`);
+        setErrorMessage(`Sync failed: ${error.message}. Please try again.`);
       }
       setErrorTitle('Sync Failed');
+    } finally {
+      setIsSyncingBlockchain(false);
     }
   };
   
