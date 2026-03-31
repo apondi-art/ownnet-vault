@@ -32,7 +32,7 @@
 
 **Deployed:** https://ownnet-vault.vercel.app/
 
-**Demo Video:** [Record a 3-min walkthrough and add link here]
+**Demo Video:** https://www.loom.com/share/451ef039e3e64aec91132449ac1b75d9
 
 ---
 
