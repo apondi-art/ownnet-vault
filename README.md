@@ -101,6 +101,12 @@ Recovery: 12-word phrase → Derive Key → Access anywhere
 
 ---
 
+> **⚠️ IMPORTANT: Accessing Your Vault**
+>
+> Clicking **"Create New Vault"** clears previous vault history from browser storage to avoid conflicts. After refreshing, access your vault using your **12-word recovery phrase** to restore your files and data.
+
+---
+
 ## 🧪 Judge Testing Guide
 
 ### Quick Start for Judges
